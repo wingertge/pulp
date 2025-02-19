@@ -223,11 +223,11 @@ use bytemuck::{AnyBitPattern, CheckedBitPattern, NoUninit, Pod, Zeroable, checke
 use core::fmt::Debug;
 use core::marker::PhantomData;
 use core::mem::MaybeUninit;
+use core::ops::*;
 use core::slice::{from_raw_parts, from_raw_parts_mut};
 use num_complex::Complex;
 use paste::paste;
 use seal::Seal;
-use std::ops::*;
 
 /// Requires the first non-lifetime generic parameter, as well as the function's
 /// first input parameter to be the SIMD type.
