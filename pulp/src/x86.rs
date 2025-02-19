@@ -252,6 +252,92 @@ macro_rules! binop_256_full {
 }
 pub(crate) use binop_256_full;
 
+macro_rules! x86_call_full {
+	($ext: expr, $func: ident, 128, $($arg: expr),*) => {
+		paste!($ext.[<_mm_ $func _si128>]($($arg),*))
+	};
+	($ext: expr, $func: ident, $width: literal, $($arg: expr),*) => {
+		paste!($ext.[<_mm $width _ $func _si $width>]($($arg),*))
+	};
+}
+
+macro_rules! load_full {
+	($func: ident, $op: ident, $doc: literal, $ty: ident, $factor: literal, $ext: ident, $width: literal) => {
+		paste! {
+			#[inline(always)]
+			#[doc = $doc]
+			/// # Safety
+			///
+			/// See the trait-level safety documentation.
+			pub unsafe fn [<$func _ $ty x $factor>](self, ptr: *const $ty) -> [<$ty x $factor>] {
+				cast!(x86_call_full!(self.$ext, $op, $width, ptr as _))
+			}
+		}
+	};
+	($ext: ident: $op: ident, $width: literal, $doc: literal, $func: ident, $($ty: ident x $factor: literal),*) => {
+		$(load_full!($func, $op, $doc, $ty, $factor, $ext, $width);)*
+	};
+}
+pub(crate) use load_full;
+
+macro_rules! load_half {
+	($func: ident, $op: ident, $doc: literal, $ty: ident, $factor: literal, $ext: ident, $width: literal) => {
+		paste! {
+			#[inline(always)]
+			#[doc = $doc]
+			/// # Safety
+			///
+			/// See the trait-level safety documentation.
+			pub unsafe fn [<$func _ $ty x $factor>](self, ptr: *const $ty) -> [<$ty x $factor>] {
+				let def = self.[<splat_ $ty x $factor>](<$ty as Default>::default());
+				cast!([<x86_call_ $width>]!(self.$ext, $op, f64, cast!(def), ptr as _))
+			}
+		}
+	};
+	($ext: ident: $op: ident, $width: literal, $doc: literal, $func: ident, $($ty: ident x $factor: literal),*) => {
+		$(load_half!($func, $op, $doc, $ty, $factor, $ext, $width);)*
+	};
+}
+pub(crate) use load_half;
+
+macro_rules! store_full {
+	($func: ident, $op: ident, $doc: literal, $ty: ident, $factor: literal, $ext: ident, $width: literal) => {
+		paste! {
+			#[inline(always)]
+			#[doc = $doc]
+			/// # Safety
+			///
+			/// See the trait-level safety documentation.
+			pub unsafe fn [<$func _ $ty x $factor>](self, ptr: *mut $ty, value: [<$ty x $factor>]) {
+				x86_call_full!(self.$ext, $op, $width, ptr as _, cast!(value));
+			}
+		}
+	};
+	($ext: ident: $op: ident, $width: literal, $doc: literal, $func: ident, $($ty: ident x $factor: literal),*) => {
+		$(store_full!($func, $op, $doc, $ty, $factor, $ext, $width);)*
+	};
+}
+pub(crate) use store_full;
+
+macro_rules! store_half {
+	($func: ident, $op: ident, $doc: literal, $ty: ident, $factor: literal, $ext: ident, $width: literal) => {
+		paste! {
+			#[inline(always)]
+			#[doc = $doc]
+			/// # Safety
+			///
+			/// See the trait-level safety documentation.
+			pub unsafe fn [<$func _ $ty x $factor>](self, ptr: *const $ty, value: [<$ty x $factor>]) {
+				cast!([<x86_call_ $width>]!(self.$ext, $op, f64, ptr as _, cast!(value)))
+			}
+		}
+	};
+	($ext: ident: $op: ident, $width: literal, $doc: literal, $func: ident, $($ty: ident x $factor: literal),*) => {
+		$(store_half!($func, $op, $doc, $ty, $factor, $ext, $width);)*
+	};
+}
+pub(crate) use store_half;
+
 mod v2;
 mod v3;
 

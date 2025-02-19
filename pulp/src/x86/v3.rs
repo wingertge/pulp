@@ -341,6 +341,34 @@ macro_rules! impl_scalar_binop {
 	};
 }
 
+macro_rules! load {
+	($func: ident, $ty: ty, $factor: literal) => {
+		paste! {
+			#[inline(always)]
+			unsafe fn [<$func _ $ty s>](self, ptr: *const $ty) -> Self::[<$ty s>] {
+				self.[<$func _ $ty x $factor>](ptr)
+			}
+		}
+	};
+	($func: ident, $($ty: ident x $factor: literal),*) => {
+		$(load!($func, $ty, $factor);)*
+	};
+}
+
+macro_rules! store {
+	($func: ident, $ty: ty, $factor: literal) => {
+		paste! {
+			#[inline(always)]
+			unsafe fn [<$func _ $ty s>](self, ptr: *mut $ty, value: Self::[<$ty s>]) {
+				self.[<$func _ $ty x $factor>](ptr, value)
+			}
+		}
+	};
+	($func: ident, $($ty: ident x $factor: literal),*) => {
+		$(store!($func, $ty, $factor);)*
+	};
+}
+
 impl Simd for V3 {
 	type c32s = f32x8;
 	type c64s = f64x4;
@@ -404,6 +432,14 @@ impl Simd for V3 {
 	impl_scalar_binop!(min, u64, i64);
 
 	impl_simd_unop!(not, m8 x 32, u8 x 32, m16 x 16, u16 x 16, m32 x 8, u32 x 8, m64 x 4, u64 x 4);
+
+	load!(load_ptr, u8 x 32, u16 x 16, u32 x 8, u64 x 4);
+
+	load!(load_unaligned_ptr, u8 x 32, u16 x 16, u32 x 8, u64 x 4);
+
+	store!(store_ptr, u8 x 32, u16 x 16, u32 x 8, u64 x 4);
+
+	store!(store_unaligned_ptr, u8 x 32, u16 x 16, u32 x 8, u64 x 4);
 
 	#[inline(always)]
 	fn abs2_c32s(self, a: Self::c32s) -> Self::c32s {
@@ -1209,6 +1245,76 @@ impl Simd for V3 {
 	fn wrapping_dyn_shr_u32s(self, a: Self::u32s, amount: Self::u32s) -> Self::u32s {
 		self.shr_dyn_u32x8(a, self.and_u32x8(amount, self.splat_u32x8(32 - 1)))
 	}
+
+	#[inline(always)]
+	unsafe fn load_unaligned_ptr_low_u8s(self, ptr: *const u8) -> Self::u8s {
+		let low = self.load_unaligned_ptr_u8x16(ptr);
+		cast!(self.avx._mm256_castps128_ps256(cast!(low)))
+	}
+
+	unsafe fn load_unaligned_ptr_low_u16s(self, ptr: *const u16) -> Self::u16s {
+		cast!(self.load_unaligned_ptr_low_u8s(ptr as _))
+	}
+
+	unsafe fn load_unaligned_ptr_low_u32s(self, ptr: *const u32) -> Self::u32s {
+		cast!(self.load_unaligned_ptr_low_u8s(ptr as _))
+	}
+
+	unsafe fn load_unaligned_ptr_low_u64s(self, ptr: *const u64) -> Self::u64s {
+		cast!(self.load_unaligned_ptr_low_u8s(ptr as _))
+	}
+
+	unsafe fn load_unaligned_ptr_high_u8s(self, ptr: *const u8) -> Self::u8s {
+		let zeros = cast!(self.splat_u8x32(0));
+		let hi = self.load_unaligned_ptr_u8x16(ptr.add(Self::U8_LANES / 2));
+		cast!(self.avx._mm256_insertf128_si256::<1>(zeros, cast!(hi)))
+	}
+
+	unsafe fn load_unaligned_ptr_high_u16s(self, ptr: *const u16) -> Self::u16s {
+		cast!(self.load_unaligned_ptr_high_u8s(ptr as _))
+	}
+
+	unsafe fn load_unaligned_ptr_high_u32s(self, ptr: *const u32) -> Self::u32s {
+		cast!(self.load_unaligned_ptr_high_u8s(ptr as _))
+	}
+
+	unsafe fn load_unaligned_ptr_high_u64s(self, ptr: *const u64) -> Self::u64s {
+		cast!(self.load_unaligned_ptr_high_u8s(ptr as _))
+	}
+
+	unsafe fn store_unaligned_ptr_low_u8s(self, ptr: *mut u8, values: Self::u8s) {
+		let lo = cast!(self.avx._mm256_castsi256_si128(cast!(values)));
+		self.store_unaligned_ptr_u8x16(ptr, lo);
+	}
+
+	unsafe fn store_unaligned_ptr_low_u16s(self, ptr: *mut u16, values: Self::u16s) {
+		cast!(self.store_unaligned_ptr_low_u8s(ptr as _, cast!(values)))
+	}
+
+	unsafe fn store_unaligned_ptr_low_u32s(self, ptr: *mut u32, values: Self::u32s) {
+		cast!(self.store_unaligned_ptr_low_u8s(ptr as _, cast!(values)))
+	}
+
+	unsafe fn store_unaligned_ptr_low_u64s(self, ptr: *mut u64, values: Self::u64s) {
+		cast!(self.store_unaligned_ptr_low_u8s(ptr as _, cast!(values)))
+	}
+
+	unsafe fn store_unaligned_ptr_high_u8s(self, ptr: *mut u8, values: Self::u8s) {
+		let hi = cast!(self.avx2._mm256_extracti128_si256::<1>(cast!(values)));
+		self.store_unaligned_ptr_u8x16(ptr.add(Self::U8_LANES / 2), hi);
+	}
+
+	unsafe fn store_unaligned_ptr_high_u16s(self, ptr: *mut u16, values: Self::u16s) {
+		cast!(self.store_unaligned_ptr_high_u8s(ptr as _, cast!(values)))
+	}
+
+	unsafe fn store_unaligned_ptr_high_u32s(self, ptr: *mut u32, values: Self::u32s) {
+		cast!(self.store_unaligned_ptr_high_u8s(ptr as _, cast!(values)))
+	}
+
+	unsafe fn store_unaligned_ptr_high_u64s(self, ptr: *mut u64, values: Self::u64s) {
+		cast!(self.store_unaligned_ptr_high_u8s(ptr as _, cast!(values)))
+	}
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -1336,6 +1442,22 @@ impl Simd for V3_128b {
 	impl_scalar_binop!(min, u64, i64);
 
 	impl_simd_unop!(not, m8 x 16, u8 x 16, m16 x 8, u16 x 8, m32 x 4, u32 x 4, m64 x 2, u64 x 2);
+
+	load!(load_ptr, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
+
+	load!(load_unaligned_ptr, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
+
+	load!(load_unaligned_ptr_low, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
+
+	load!(load_unaligned_ptr_high, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
+
+	store!(store_ptr, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
+
+	store!(store_unaligned_ptr, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
+
+	store!(store_unaligned_ptr_low, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
+
+	store!(store_unaligned_ptr_high, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
 
 	#[inline(always)]
 	fn abs2_c32s(self, a: Self::c32s) -> Self::c32s {
@@ -1918,6 +2040,14 @@ impl Simd for V3_256b {
 
 	impl_simd_unop!(not, m8 x 32, u8 x 32, m16 x 16, u16 x 16, m32 x 8, u32 x 8, m64 x 4, u64 x 4);
 
+	load!(load_ptr, u8 x 32, u16 x 16, u32 x 8, u64 x 4);
+
+	load!(load_unaligned_ptr, u8 x 32, u16 x 16, u32 x 8, u64 x 4);
+
+	store!(store_ptr, u8 x 32, u16 x 16, u32 x 8, u64 x 4);
+
+	store!(store_unaligned_ptr, u8 x 32, u16 x 16, u32 x 8, u64 x 4);
+
 	inherit!({
 		fn abs2_c32s(self, a: Self::c32s) -> Self::c32s;
 		fn abs2_c64s(self, a: Self::c64s) -> Self::c64s;
@@ -2033,6 +2163,22 @@ impl Simd for V3_256b {
 			ptr: *mut u64,
 			values: Self::u64s,
 		);
+		unsafe fn load_unaligned_ptr_low_u8s(self, ptr: *const u8) -> Self::u8s;
+		unsafe fn load_unaligned_ptr_low_u16s(self, ptr: *const u16) -> Self::u16s;
+		unsafe fn load_unaligned_ptr_low_u32s(self, ptr: *const u32) -> Self::u32s;
+		unsafe fn load_unaligned_ptr_low_u64s(self, ptr: *const u64) -> Self::u64s;
+		unsafe fn load_unaligned_ptr_high_u8s(self, ptr: *const u8) -> Self::u8s;
+		unsafe fn load_unaligned_ptr_high_u16s(self, ptr: *const u16) -> Self::u16s;
+		unsafe fn load_unaligned_ptr_high_u32s(self, ptr: *const u32) -> Self::u32s;
+		unsafe fn load_unaligned_ptr_high_u64s(self, ptr: *const u64) -> Self::u64s;
+		unsafe fn store_unaligned_ptr_low_u8s(self, ptr: *mut u8, value: Self::u8s);
+		unsafe fn store_unaligned_ptr_low_u16s(self, ptr: *mut u16, value: Self::u16s);
+		unsafe fn store_unaligned_ptr_low_u32s(self, ptr: *mut u32, value: Self::u32s);
+		unsafe fn store_unaligned_ptr_low_u64s(self, ptr: *mut u64, value: Self::u64s);
+		unsafe fn store_unaligned_ptr_high_u8s(self, ptr: *mut u8, value: Self::u8s);
+		unsafe fn store_unaligned_ptr_high_u16s(self, ptr: *mut u16, value: Self::u16s);
+		unsafe fn store_unaligned_ptr_high_u32s(self, ptr: *mut u32, value: Self::u32s);
+		unsafe fn store_unaligned_ptr_high_u64s(self, ptr: *mut u64, value: Self::u64s);
 		fn mul_add_c32s(self, a: Self::c32s, b: Self::c32s, c: Self::c32s) -> Self::c32s;
 		fn mul_add_c64s(self, a: Self::c64s, b: Self::c64s, c: Self::c64s) -> Self::c64s;
 		fn mul_add_e_f32s(self, a: Self::f32s, b: Self::f32s, c: Self::f32s) -> Self::f32s;
@@ -2723,6 +2869,172 @@ impl Simd for V3_512b {
 	fn min_i64s(self, a: Self::i64s, b: Self::i64s) -> Self::i64s {
 		Scalar512b.max_i64s(a, b)
 	}
+
+	#[inline(always)]
+	unsafe fn load_unaligned_ptr_low_u8s(self, ptr: *const u8) -> Self::u8s {
+		let zeros = cast!(self.splat_u8x32(0));
+		let low = self.load_unaligned_ptr_u8x32(ptr);
+		cast!([low, zeros])
+	}
+
+	#[inline(always)]
+	unsafe fn load_unaligned_ptr_low_u16s(self, ptr: *const u16) -> Self::u16s {
+		cast!(self.load_unaligned_ptr_low_u8s(ptr as _))
+	}
+
+	#[inline(always)]
+	unsafe fn load_unaligned_ptr_low_u32s(self, ptr: *const u32) -> Self::u32s {
+		cast!(self.load_unaligned_ptr_low_u8s(ptr as _))
+	}
+
+	#[inline(always)]
+	unsafe fn load_unaligned_ptr_low_u64s(self, ptr: *const u64) -> Self::u64s {
+		cast!(self.load_unaligned_ptr_low_u8s(ptr as _))
+	}
+
+	#[inline(always)]
+	unsafe fn load_unaligned_ptr_high_u8s(self, ptr: *const u8) -> Self::u8s {
+		let zeros = cast!(self.splat_u8x32(0));
+		let hi = self.load_unaligned_ptr_u8x32(ptr.add(Self::U8_LANES / 2));
+		cast!([zeros, hi])
+	}
+
+	#[inline(always)]
+	unsafe fn load_unaligned_ptr_high_u16s(self, ptr: *const u16) -> Self::u16s {
+		cast!(self.load_unaligned_ptr_high_u8s(ptr as _))
+	}
+
+	#[inline(always)]
+	unsafe fn load_unaligned_ptr_high_u32s(self, ptr: *const u32) -> Self::u32s {
+		cast!(self.load_unaligned_ptr_high_u8s(ptr as _))
+	}
+
+	#[inline(always)]
+	unsafe fn load_unaligned_ptr_high_u64s(self, ptr: *const u64) -> Self::u64s {
+		cast!(self.load_unaligned_ptr_high_u8s(ptr as _))
+	}
+
+	#[inline(always)]
+	unsafe fn store_unaligned_ptr_low_u8s(self, ptr: *mut u8, values: Self::u8s) {
+		let a: [_; 2] = cast!(values);
+		self.store_unaligned_ptr_u8x32(ptr, a[0]);
+	}
+
+	#[inline(always)]
+	unsafe fn store_unaligned_ptr_low_u16s(self, ptr: *mut u16, values: Self::u16s) {
+		cast!(self.store_unaligned_ptr_low_u8s(ptr as _, cast!(values)))
+	}
+
+	#[inline(always)]
+	unsafe fn store_unaligned_ptr_low_u32s(self, ptr: *mut u32, values: Self::u32s) {
+		cast!(self.store_unaligned_ptr_low_u8s(ptr as _, cast!(values)))
+	}
+
+	#[inline(always)]
+	unsafe fn store_unaligned_ptr_low_u64s(self, ptr: *mut u64, values: Self::u64s) {
+		cast!(self.store_unaligned_ptr_low_u8s(ptr as _, cast!(values)))
+	}
+
+	#[inline(always)]
+	unsafe fn store_unaligned_ptr_high_u8s(self, ptr: *mut u8, values: Self::u8s) {
+		let a: [_; 2] = cast!(values);
+		self.store_unaligned_ptr_u8x32(ptr.add(Self::U8_LANES / 2), a[1]);
+	}
+
+	#[inline(always)]
+	unsafe fn store_unaligned_ptr_high_u16s(self, ptr: *mut u16, values: Self::u16s) {
+		cast!(self.store_unaligned_ptr_high_u8s(ptr as _, cast!(values)))
+	}
+
+	#[inline(always)]
+	unsafe fn store_unaligned_ptr_high_u32s(self, ptr: *mut u32, values: Self::u32s) {
+		cast!(self.store_unaligned_ptr_high_u8s(ptr as _, cast!(values)))
+	}
+
+	#[inline(always)]
+	unsafe fn store_unaligned_ptr_high_u64s(self, ptr: *mut u64, values: Self::u64s) {
+		cast!(self.store_unaligned_ptr_high_u8s(ptr as _, cast!(values)))
+	}
+
+	#[inline(always)]
+	unsafe fn load_ptr_u8s(self, ptr: *const u8) -> Self::u8s {
+		let lo = self.load_ptr_u8x32(ptr);
+		let hi = self.load_ptr_u8x32(ptr.add(V3_256b::U8_LANES));
+		cast!([lo, hi])
+	}
+
+	#[inline(always)]
+	unsafe fn load_ptr_u16s(self, ptr: *const u16) -> Self::u16s {
+		cast!(self.load_ptr_u8s(ptr as _))
+	}
+
+	#[inline(always)]
+	unsafe fn load_ptr_u32s(self, ptr: *const u32) -> Self::u32s {
+		cast!(self.load_ptr_u8s(ptr as _))
+	}
+
+	#[inline(always)]
+	unsafe fn load_ptr_u64s(self, ptr: *const u64) -> Self::u64s {
+		cast!(self.load_ptr_u8s(ptr as _))
+	}
+
+	#[inline(always)]
+	unsafe fn load_unaligned_ptr_u8s(self, ptr: *const u8) -> Self::u8s {
+		let lo = self.load_unaligned_ptr_u8x32(ptr);
+		let hi = self.load_unaligned_ptr_u8x32(ptr.add(V3_256b::U8_LANES));
+		cast!([lo, hi])
+	}
+
+	#[inline(always)]
+	unsafe fn load_unaligned_ptr_u16s(self, ptr: *const u16) -> Self::u16s {
+		cast!(self.load_unaligned_ptr_u8s(ptr as _))
+	}
+
+	#[inline(always)]
+	unsafe fn load_unaligned_ptr_u32s(self, ptr: *const u32) -> Self::u32s {
+		cast!(self.load_unaligned_ptr_u8s(ptr as _))
+	}
+
+	#[inline(always)]
+	unsafe fn load_unaligned_ptr_u64s(self, ptr: *const u64) -> Self::u64s {
+		cast!(self.load_unaligned_ptr_u8s(ptr as _))
+	}
+
+	unsafe fn store_ptr_u8s(self, ptr: *mut u8, values: Self::u8s) {
+		let a: [_; 2] = cast!(values);
+		self.store_ptr_u8x32(ptr, a[0]);
+		self.store_ptr_u8x32(ptr.add(V3_256b::U8_LANES), a[1]);
+	}
+
+	unsafe fn store_ptr_u16s(self, ptr: *mut u16, values: Self::u16s) {
+		cast!(self.store_ptr_u8s(ptr as _, cast!(values)))
+	}
+
+	unsafe fn store_ptr_u32s(self, ptr: *mut u32, values: Self::u32s) {
+		cast!(self.store_ptr_u8s(ptr as _, cast!(values)))
+	}
+
+	unsafe fn store_ptr_u64s(self, ptr: *mut u64, values: Self::u64s) {
+		cast!(self.store_ptr_u8s(ptr as _, cast!(values)))
+	}
+
+	unsafe fn store_unaligned_ptr_u8s(self, ptr: *mut u8, values: Self::u8s) {
+		let a: [_; 2] = cast!(values);
+		self.store_unaligned_ptr_u8x32(ptr, a[0]);
+		self.store_unaligned_ptr_u8x32(ptr.add(V3_256b::U8_LANES), a[1]);
+	}
+
+	unsafe fn store_unaligned_ptr_u16s(self, ptr: *mut u16, values: Self::u16s) {
+		cast!(self.store_unaligned_ptr_u8s(ptr as _, cast!(values)))
+	}
+
+	unsafe fn store_unaligned_ptr_u32s(self, ptr: *mut u32, values: Self::u32s) {
+		cast!(self.store_unaligned_ptr_u8s(ptr as _, cast!(values)))
+	}
+
+	unsafe fn store_unaligned_ptr_u64s(self, ptr: *mut u64, values: Self::u64s) {
+		cast!(self.store_unaligned_ptr_u8s(ptr as _, cast!(values)))
+	}
 }
 
 impl V3 {
@@ -2794,6 +3106,14 @@ impl V3 {
 	binop_256!(avx: xor, "Returns `a ^ b` for each bit in `a` and `b`.", f32 x 8, f64 x 4);
 
 	binop_256_full!(avx2: xor, "Returns `a ^ b` for each bit in `a` and `b`.", m8 x 32, u8 x 32, i8 x 32, m16 x 16, u16 x 16, i16 x 16, m32 x 8, u32 x 8, i32 x 8, m64 x 4, u64 x 4, i64 x 4);
+
+	load_full!(avx: load, 256, "Store the full vector at an aligned pointer.", load_ptr, u8 x 32, i8 x 32, u16 x 16, i16 x 16, u32 x 8, i32 x 8, u64 x 4, i64 x 4, f32 x 8, f64 x 4);
+
+	load_full!(avx: lddqu, 256, "Store the full vector at an unaligned pointer.", load_unaligned_ptr, u8 x 32, i8 x 32, u16 x 16, i16 x 16, u32 x 8, i32 x 8, u64 x 4, i64 x 4, f32 x 8, f64 x 4);
+
+	store_full!(avx: store, 256, "Store the full vector at an aligned pointer.", store_ptr, u8 x 32, i8 x 32, u16 x 16, i16 x 16, u32 x 8, i32 x 8, u64 x 4, i64 x 4, f32 x 8, f64 x 4);
+
+	store_full!(avx: storeu, 256, "Store the full vector at an unaligned pointer.", store_unaligned_ptr, u8 x 32, i8 x 32, u16 x 16, i16 x 16, u32 x 8, i32 x 8, u64 x 4, i64 x 4, f32 x 8, f64 x 4);
 
 	/// Computes `abs(a)` for each lane of `a`.
 	#[inline(always)]

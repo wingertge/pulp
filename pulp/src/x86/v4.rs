@@ -399,6 +399,34 @@ macro_rules! impl_simd_unop {
 	};
 }
 
+macro_rules! load {
+	($func: ident, $ty: ty, $factor: literal) => {
+		paste! {
+			#[inline(always)]
+			unsafe fn [<$func _ $ty s>](self, ptr: *const $ty) -> Self::[<$ty s>] {
+				self.[<$func _ $ty x $factor>](ptr)
+			}
+		}
+	};
+	($func: ident, $($ty: ident x $factor: literal),*) => {
+		$(load!($func, $ty, $factor);)*
+	};
+}
+
+macro_rules! store {
+	($func: ident, $ty: ty, $factor: literal) => {
+		paste! {
+			#[inline(always)]
+			unsafe fn [<$func _ $ty s>](self, ptr: *mut $ty, value: Self::[<$ty s>]) {
+				self.[<$func _ $ty x $factor>](ptr, value)
+			}
+		}
+	};
+	($func: ident, $($ty: ident x $factor: literal),*) => {
+		$(store!($func, $ty, $factor);)*
+	};
+}
+
 impl Simd for V4 {
 	type c32s = f32x16;
 	type c64s = f64x8;
@@ -456,6 +484,14 @@ impl Simd for V4 {
 	impl_simd_binop!(min, u8 x 64, i8 x 64, u16 x 32, i16 x 32, u32 x 16, i32 x 16, u64 x 8, i64 x 8, f32 x 16, f64 x 8);
 
 	impl_simd_unop!(not, u8 x 64, u16 x 32, u32 x 16, u64 x 8);
+
+	load!(load_ptr, u8 x 64, u16 x 32, u32 x 16, u64 x 8);
+
+	load!(load_unaligned_ptr, u8 x 64, u16 x 32, u32 x 16, u64 x 8);
+
+	store!(store_ptr, u8 x 64, u16 x 32, u32 x 16, u64 x 8);
+
+	store!(store_unaligned_ptr, u8 x 64, u16 x 32, u32 x 16, u64 x 8);
 
 	#[inline(always)]
 	fn abs2_c32s(self, a: Self::c32s) -> Self::c32s {
@@ -1360,6 +1396,76 @@ impl Simd for V4 {
 	fn xor_m64s(self, a: Self::m64s, b: Self::m64s) -> Self::m64s {
 		b8(a.0 ^ b.0)
 	}
+
+	#[inline(always)]
+	unsafe fn load_unaligned_ptr_low_u8s(self, ptr: *const u8) -> Self::u8s {
+		let lo = self.load_unaligned_ptr_u8x32(ptr);
+		cast!(self.avx512f._mm512_castsi256_si512(cast!(lo)))
+	}
+
+	unsafe fn load_unaligned_ptr_low_u16s(self, ptr: *const u16) -> Self::u16s {
+		cast!(self.load_unaligned_ptr_low_u8s(ptr as _))
+	}
+
+	unsafe fn load_unaligned_ptr_low_u32s(self, ptr: *const u32) -> Self::u32s {
+		cast!(self.load_unaligned_ptr_low_u8s(ptr as _))
+	}
+
+	unsafe fn load_unaligned_ptr_low_u64s(self, ptr: *const u64) -> Self::u64s {
+		cast!(self.load_unaligned_ptr_low_u8s(ptr as _))
+	}
+
+	unsafe fn load_unaligned_ptr_high_u8s(self, ptr: *const u8) -> Self::u8s {
+		let zeros = cast!(self.splat_u8x64(0));
+		let hi = self.load_unaligned_ptr_u8x32(ptr.add(Self::U8_LANES / 2));
+		cast!(self.avx512f._mm512_inserti64x4::<1>(zeros, cast!(hi)))
+	}
+
+	unsafe fn load_unaligned_ptr_high_u16s(self, ptr: *const u16) -> Self::u16s {
+		cast!(self.load_unaligned_ptr_high_u8s(ptr as _))
+	}
+
+	unsafe fn load_unaligned_ptr_high_u32s(self, ptr: *const u32) -> Self::u32s {
+		cast!(self.load_unaligned_ptr_high_u8s(ptr as _))
+	}
+
+	unsafe fn load_unaligned_ptr_high_u64s(self, ptr: *const u64) -> Self::u64s {
+		cast!(self.load_unaligned_ptr_high_u8s(ptr as _))
+	}
+
+	unsafe fn store_unaligned_ptr_low_u8s(self, ptr: *mut u8, values: Self::u8s) {
+		let lo = cast!(self.avx512f._mm512_castsi512_si256(cast!(values)));
+		self.store_unaligned_ptr_u8x32(ptr, lo);
+	}
+
+	unsafe fn store_unaligned_ptr_low_u16s(self, ptr: *mut u16, values: Self::u16s) {
+		cast!(self.store_unaligned_ptr_low_u8s(ptr as _, cast!(values)))
+	}
+
+	unsafe fn store_unaligned_ptr_low_u32s(self, ptr: *mut u32, values: Self::u32s) {
+		cast!(self.store_unaligned_ptr_low_u8s(ptr as _, cast!(values)))
+	}
+
+	unsafe fn store_unaligned_ptr_low_u64s(self, ptr: *mut u64, values: Self::u64s) {
+		cast!(self.store_unaligned_ptr_low_u8s(ptr as _, cast!(values)))
+	}
+
+	unsafe fn store_unaligned_ptr_high_u8s(self, ptr: *mut u8, values: Self::u8s) {
+		let hi = cast!(self.avx512f._mm512_extracti64x4_epi64::<1>(cast!(values)));
+		self.store_unaligned_ptr_u8x32(ptr.add(Self::U8_LANES / 2), hi);
+	}
+
+	unsafe fn store_unaligned_ptr_high_u16s(self, ptr: *mut u16, values: Self::u16s) {
+		cast!(self.store_unaligned_ptr_high_u8s(ptr as _, cast!(values)))
+	}
+
+	unsafe fn store_unaligned_ptr_high_u32s(self, ptr: *mut u32, values: Self::u32s) {
+		cast!(self.store_unaligned_ptr_high_u8s(ptr as _, cast!(values)))
+	}
+
+	unsafe fn store_unaligned_ptr_high_u64s(self, ptr: *mut u64, values: Self::u64s) {
+		cast!(self.store_unaligned_ptr_high_u8s(ptr as _, cast!(values)))
+	}
 }
 
 impl V4 {
@@ -1434,6 +1540,14 @@ impl V4 {
 	binop_512!(avx512dq: xor, "Returns `a ^ b` for each bit in `a` and `b`.", f32 x 16, f64 x 8);
 
 	binop_512_full!(avx512f: xor, "Returns `a ^ b` for each bit in `a` and `b`.", u8 x 64, i8 x 64, u16 x 32, i16 x 32, u32 x 16, i32 x 16, u64 x 8, i64 x 8);
+
+	load_full!(avx512f: load, 512, "Store the full vector at an aligned pointer.", load_ptr, u8 x 64, i8 x 64, u16 x 32, i16 x 32, u32 x 16, i32 x 16, u64 x 8, i64 x 8, f32 x 16, f64 x 8);
+
+	load_full!(avx512f: loadu, 512, "Store the full vector at an unaligned pointer.", load_unaligned_ptr, u8 x 64, i8 x 64, u16 x 32, i16 x 32, u32 x 16, i32 x 16, u64 x 8, i64 x 8, f32 x 16, f64 x 8);
+
+	store_full!(avx512f: store, 512, "Store the full vector at an aligned pointer.", store_ptr, u8 x 64, i8 x 64, u16 x 32, i16 x 32, u32 x 16, i32 x 16, u64 x 8, i64 x 8, f32 x 16, f64 x 8);
+
+	store_full!(avx512f: storeu, 512, "Store the full vector at an unaligned pointer.", store_unaligned_ptr, u8 x 64, i8 x 64, u16 x 32, i16 x 32, u32 x 16, i32 x 16, u64 x 8, i64 x 8, f32 x 16, f64 x 8);
 
 	/// Computes the absolute value of the elements of each lane of `a`.
 	#[inline(always)]

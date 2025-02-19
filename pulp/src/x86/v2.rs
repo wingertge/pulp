@@ -150,6 +150,22 @@ impl V2 {
 
 	binop_128_full!(sse2: xor, "Returns `a ^ b` for each bit in `a` and `b`.", m8 x 16, u8 x 16, i8 x 16, m16 x 8, u16 x 8, i16 x 8, m32 x 4, u32 x 4, i32 x 4, m64 x 2, u64 x 2, i64 x 2);
 
+	load_full!(sse2: load, 128, "Load the full vector at an aligned pointer.", load_ptr, u8 x 16, i8 x 16, u16 x 8, i16 x 8, u32 x 4, i32 x 4, u64 x 2, i64 x 2, f32 x 4, f64 x 2);
+
+	load_full!(sse3: lddqu, 128, "Load the full vector at an unaligned pointer.", load_unaligned_ptr, u8 x 16, i8 x 16, u16 x 8, i16 x 8, u32 x 4, i32 x 4, u64 x 2, i64 x 2, f32 x 4, f64 x 2);
+
+	load_half!(sse2: loadl, 128, "Load the lower half of the vector at an unaligned pointer.", load_unaligned_ptr_low, u8 x 16, i8 x 16, u16 x 8, i16 x 8, u32 x 4, i32 x 4, u64 x 2, i64 x 2, f32 x 4, f64 x 2);
+
+	load_half!(sse2: loadh, 128, "Load the lower half of the vector at an unaligned pointer.", load_unaligned_ptr_high, u8 x 16, i8 x 16, u16 x 8, i16 x 8, u32 x 4, i32 x 4, u64 x 2, i64 x 2, f32 x 4, f64 x 2);
+
+	store_full!(sse2: store, 128, "Store the full vector at an aligned pointer.", store_ptr, u8 x 16, i8 x 16, u16 x 8, i16 x 8, u32 x 4, i32 x 4, u64 x 2, i64 x 2, f32 x 4, f64 x 2);
+
+	store_full!(sse2: storeu, 128, "Store the full vector at an unaligned pointer.", store_unaligned_ptr, u8 x 16, i8 x 16, u16 x 8, i16 x 8, u32 x 4, i32 x 4, u64 x 2, i64 x 2, f32 x 4, f64 x 2);
+
+	store_half!(sse2: storel, 128, "Store the lower half of the vector at an unaligned pointer.", store_unaligned_ptr_low, u8 x 16, i8 x 16, u16 x 8, i16 x 8, u32 x 4, i32 x 4, u64 x 2, i64 x 2, f32 x 4, f64 x 2);
+
+	store_half!(sse2: storeh, 128, "Store the upper half of the vector at an unaligned pointer.", store_unaligned_ptr_high, u8 x 16, i8 x 16, u16 x 8, i16 x 8, u32 x 4, i32 x 4, u64 x 2, i64 x 2, f32 x 4, f64 x 2);
+
 	/// Computes `abs(a)` for each lane of `a`.
 	#[inline(always)]
 	pub fn abs_f32x4(self, a: f32x4) -> f32x4 {
@@ -1441,6 +1457,34 @@ macro_rules! splat {
 	};
 }
 
+macro_rules! load {
+	($func: ident, $ty: ty, $factor: literal) => {
+		paste! {
+			#[inline(always)]
+			unsafe fn [<$func _ $ty s>](self, ptr: *const $ty) -> Self::[<$ty s>] {
+				self.[<$func _ $ty x $factor>](ptr)
+			}
+		}
+	};
+	($func: ident, $($ty: ident x $factor: literal),*) => {
+		$(load!($func, $ty, $factor);)*
+	};
+}
+
+macro_rules! store {
+	($func: ident, $ty: ty, $factor: literal) => {
+		paste! {
+			#[inline(always)]
+			unsafe fn [<$func _ $ty s>](self, ptr: *mut $ty, value: Self::[<$ty s>]) {
+				self.[<$func _ $ty x $factor>](ptr, value)
+			}
+		}
+	};
+	($func: ident, $($ty: ident x $factor: literal),*) => {
+		$(store!($func, $ty, $factor);)*
+	};
+}
+
 impl Simd for V2 {
 	type c32s = f32x4;
 	type c64s = f64x2;
@@ -1506,6 +1550,22 @@ impl Simd for V2 {
 	impl_scalar_binop!(min, u64, i64);
 
 	impl_simd_unop!(not, m8 x 16, u8 x 16, m16 x 8, u16 x 8, m32 x 4, u32 x 4, m64 x 2, u64 x 2);
+
+	load!(load_ptr, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
+
+	load!(load_unaligned_ptr, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
+
+	load!(load_unaligned_ptr_low, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
+
+	load!(load_unaligned_ptr_high, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
+
+	store!(store_ptr, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
+
+	store!(store_unaligned_ptr, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
+
+	store!(store_unaligned_ptr_low, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
+
+	store!(store_unaligned_ptr_high, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
 
 	fn abs2_c32s(self, a: Self::c32s) -> Self::c32s {
 		let sqr = self.mul_f32s(a, a);

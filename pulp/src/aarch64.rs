@@ -186,6 +186,34 @@ macro_rules! splat {
 	};
 }
 
+macro_rules! load {
+	($func: ident, $ty: ty, $factor: literal) => {
+		paste! {
+			#[inline(always)]
+			unsafe fn [<$func _ $ty s>](self, ptr: *const $ty) -> Self::[<$ty s>] {
+				self.[<$func _ $ty x $factor>](ptr)
+			}
+		}
+	};
+	($func: ident, $($ty: ident x $factor: literal),*) => {
+		$(load!($func, $ty, $factor);)*
+	};
+}
+
+macro_rules! store {
+	($func: ident, $ty: ty, $factor: literal) => {
+		paste! {
+			#[inline(always)]
+			unsafe fn [<$func _ $ty s>](self, ptr: *mut $ty, value: Self::[<$ty s>]) {
+				self.[<$func _ $ty x $factor>](ptr, value)
+			}
+		}
+	};
+	($func: ident, $($ty: ident x $factor: literal),*) => {
+		$(store!($func, $ty, $factor);)*
+	};
+}
+
 impl Simd for Neon {
 	type c32s = f32x4;
 	type c64s = f64x2;
@@ -247,6 +275,14 @@ impl Simd for Neon {
 	impl_unop!(not, m8 x 16, u8 x 16, m16 x 8, u16 x 8, m32 x 4, u32 x 4, m64 x 2, u64 x 2);
 
 	splat!(u8 x 16, i8 x 16, u16 x 8, i16 x 8, u32 x 4, i32 x 4, u64 x 2, i64 x 2, f32 x 4, f64 x 2);
+
+	load!(load_ptr, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
+
+	load!(load_unaligned_ptr, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
+
+	store!(store_ptr, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
+
+	store!(store_unaligned_ptr, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
 
 	#[inline(always)]
 	fn abs2_c32s(self, a: Self::c32s) -> Self::c32s {
@@ -1308,6 +1344,94 @@ impl Simd for Neon {
 			a.3 >> amount.3,
 		)
 	}
+
+	unsafe fn load_unaligned_ptr_low_u8s(self, ptr: *const u8) -> Self::u8s {
+		let low = self.neon.vld1_u8(ptr);
+		let high = self.neon.vdup_n_u8(0);
+		cast!(self.neon.vcombine_u8(low, high))
+	}
+
+	unsafe fn load_unaligned_ptr_low_u16s(self, ptr: *const u16) -> Self::u16s {
+		let low = self.neon.vld1_u16(ptr);
+		let high = self.neon.vdup_n_u16(0);
+		cast!(self.neon.vcombine_u16(low, high))
+	}
+
+	unsafe fn load_unaligned_ptr_low_u32s(self, ptr: *const u32) -> Self::u32s {
+		let low = self.neon.vld1_u32(ptr);
+		let high = self.neon.vdup_n_u32(0);
+		cast!(self.neon.vcombine_u32(low, high))
+	}
+
+	unsafe fn load_unaligned_ptr_low_u64s(self, ptr: *const u64) -> Self::u64s {
+		let low = self.neon.vld1_u64(ptr);
+		let high = self.neon.vdup_n_u64(0);
+		cast!(self.neon.vcombine_u64(low, high))
+	}
+
+	unsafe fn load_unaligned_ptr_high_u8s(self, ptr: *const u8) -> Self::u8s {
+		let low = self.neon.vdup_n_u8(0);
+		let high = self.neon.vld1_u8(ptr);
+		cast!(self.neon.vcombine_u8(low, high))
+	}
+
+	unsafe fn load_unaligned_ptr_high_u16s(self, ptr: *const u16) -> Self::u16s {
+		let low = self.neon.vdup_n_u16(0);
+		let high = self.neon.vld1_u16(ptr);
+		cast!(self.neon.vcombine_u16(low, high))
+	}
+
+	unsafe fn load_unaligned_ptr_high_u32s(self, ptr: *const u32) -> Self::u32s {
+		let low = self.neon.vdup_n_u32(0);
+		let high = self.neon.vld1_u32(ptr);
+		cast!(self.neon.vcombine_u32(low, high))
+	}
+
+	unsafe fn load_unaligned_ptr_high_u64s(self, ptr: *const u64) -> Self::u64s {
+		let low = self.neon.vdup_n_u64(0);
+		let high = self.neon.vld1_u64(ptr);
+		cast!(self.neon.vcombine_u64(low, high))
+	}
+
+	unsafe fn store_unaligned_ptr_low_u8s(self, ptr: *mut u8, values: Self::u8s) {
+		let low = self.neon.vget_low_u8(cast!(values));
+		self.neon.vst1_u8(ptr, low);
+	}
+
+	unsafe fn store_unaligned_ptr_low_u16s(self, ptr: *mut u16, values: Self::u16s) {
+		let low = self.neon.vget_low_u16(cast!(values));
+		self.neon.vst1_u16(ptr, low);
+	}
+
+	unsafe fn store_unaligned_ptr_low_u32s(self, ptr: *mut u32, values: Self::u32s) {
+		let low = self.neon.vget_low_u32(cast!(values));
+		self.neon.vst1_u32(ptr, low);
+	}
+
+	unsafe fn store_unaligned_ptr_low_u64s(self, ptr: *mut u64, values: Self::u64s) {
+		let low = self.neon.vget_low_u64(cast!(values));
+		self.neon.vst1_u64(ptr, low);
+	}
+
+	unsafe fn store_unaligned_ptr_high_u8s(self, ptr: *mut u8, values: Self::u8s) {
+		let high = self.neon.vget_high_u8(cast!(values));
+		self.neon.vst1_u8(ptr, high);
+	}
+
+	unsafe fn store_unaligned_ptr_high_u16s(self, ptr: *mut u16, values: Self::u16s) {
+		let high = self.neon.vget_high_u16(cast!(values));
+		self.neon.vst1_u16(ptr, high);
+	}
+
+	unsafe fn store_unaligned_ptr_high_u32s(self, ptr: *mut u32, values: Self::u32s) {
+		let high = self.neon.vget_high_u32(cast!(values));
+		self.neon.vst1_u32(ptr, high);
+	}
+
+	unsafe fn store_unaligned_ptr_high_u64s(self, ptr: *mut u64, values: Self::u64s) {
+		let high = self.neon.vget_high_u64(cast!(values));
+		self.neon.vst1_u64(ptr, high);
+	}
 }
 
 impl Simd for NeonFcma {
@@ -1371,6 +1495,14 @@ impl Simd for NeonFcma {
 	impl_unop!(not, m8 x 16, u8 x 16, m16 x 8, u16 x 8, m32 x 4, u32 x 4, m64 x 2, u64 x 2);
 
 	splat!(u8 x 16, i8 x 16, u16 x 8, i16 x 8, u32 x 4, i32 x 4, u64 x 2, i64 x 2, f32 x 4, f64 x 2);
+
+	load!(load_ptr, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
+
+	load!(load_unaligned_ptr, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
+
+	store!(store_ptr, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
+
+	store!(store_unaligned_ptr, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
 
 	#[inline(always)]
 	fn abs2_c32s(self, a: Self::c32s) -> Self::c32s {
@@ -2250,6 +2382,94 @@ impl Simd for NeonFcma {
 			a.3 >> amount.3,
 		)
 	}
+
+	unsafe fn load_unaligned_ptr_low_u8s(self, ptr: *const u8) -> Self::u8s {
+		let low = self.neon.vld1_u8(ptr);
+		let high = self.neon.vdup_n_u8(0);
+		cast!(self.neon.vcombine_u8(low, high))
+	}
+
+	unsafe fn load_unaligned_ptr_low_u16s(self, ptr: *const u16) -> Self::u16s {
+		let low = self.neon.vld1_u16(ptr);
+		let high = self.neon.vdup_n_u16(0);
+		cast!(self.neon.vcombine_u16(low, high))
+	}
+
+	unsafe fn load_unaligned_ptr_low_u32s(self, ptr: *const u32) -> Self::u32s {
+		let low = self.neon.vld1_u32(ptr);
+		let high = self.neon.vdup_n_u32(0);
+		cast!(self.neon.vcombine_u32(low, high))
+	}
+
+	unsafe fn load_unaligned_ptr_low_u64s(self, ptr: *const u64) -> Self::u64s {
+		let low = self.neon.vld1_u64(ptr);
+		let high = self.neon.vdup_n_u64(0);
+		cast!(self.neon.vcombine_u64(low, high))
+	}
+
+	unsafe fn load_unaligned_ptr_high_u8s(self, ptr: *const u8) -> Self::u8s {
+		let low = self.neon.vdup_n_u8(0);
+		let high = self.neon.vld1_u8(ptr);
+		cast!(self.neon.vcombine_u8(low, high))
+	}
+
+	unsafe fn load_unaligned_ptr_high_u16s(self, ptr: *const u16) -> Self::u16s {
+		let low = self.neon.vdup_n_u16(0);
+		let high = self.neon.vld1_u16(ptr);
+		cast!(self.neon.vcombine_u16(low, high))
+	}
+
+	unsafe fn load_unaligned_ptr_high_u32s(self, ptr: *const u32) -> Self::u32s {
+		let low = self.neon.vdup_n_u32(0);
+		let high = self.neon.vld1_u32(ptr);
+		cast!(self.neon.vcombine_u32(low, high))
+	}
+
+	unsafe fn load_unaligned_ptr_high_u64s(self, ptr: *const u64) -> Self::u64s {
+		let low = self.neon.vdup_n_u64(0);
+		let high = self.neon.vld1_u64(ptr);
+		cast!(self.neon.vcombine_u64(low, high))
+	}
+
+	unsafe fn store_unaligned_ptr_low_u8s(self, ptr: *mut u8, values: Self::u8s) {
+		let low = self.neon.vget_low_u8(cast!(values));
+		self.neon.vst1_u8(ptr, low);
+	}
+
+	unsafe fn store_unaligned_ptr_low_u16s(self, ptr: *mut u16, values: Self::u16s) {
+		let low = self.neon.vget_low_u16(cast!(values));
+		self.neon.vst1_u16(ptr, low);
+	}
+
+	unsafe fn store_unaligned_ptr_low_u32s(self, ptr: *mut u32, values: Self::u32s) {
+		let low = self.neon.vget_low_u32(cast!(values));
+		self.neon.vst1_u32(ptr, low);
+	}
+
+	unsafe fn store_unaligned_ptr_low_u64s(self, ptr: *mut u64, values: Self::u64s) {
+		let low = self.neon.vget_low_u64(cast!(values));
+		self.neon.vst1_u64(ptr, low);
+	}
+
+	unsafe fn store_unaligned_ptr_high_u8s(self, ptr: *mut u8, values: Self::u8s) {
+		let high = self.neon.vget_high_u8(cast!(values));
+		self.neon.vst1_u8(ptr, high);
+	}
+
+	unsafe fn store_unaligned_ptr_high_u16s(self, ptr: *mut u16, values: Self::u16s) {
+		let high = self.neon.vget_high_u16(cast!(values));
+		self.neon.vst1_u16(ptr, high);
+	}
+
+	unsafe fn store_unaligned_ptr_high_u32s(self, ptr: *mut u32, values: Self::u32s) {
+		let high = self.neon.vget_high_u32(cast!(values));
+		self.neon.vst1_u32(ptr, high);
+	}
+
+	unsafe fn store_unaligned_ptr_high_u64s(self, ptr: *mut u64, values: Self::u64s) {
+		let high = self.neon.vget_high_u64(cast!(values));
+		self.neon.vst1_u64(ptr, high);
+	}
 }
 
 #[cfg(miri)]
@@ -2280,31 +2500,31 @@ unsafe fn vfmaq_f32(c: float32x4_t, a: float32x4_t, b: float32x4_t) -> float32x4
 
 macro_rules! neon_ty {
 	($func: ident, i8) => {
-		paste!([<v $func q_ s8>])
+		paste!([<v $func _ s8>])
 	};
 	($func: ident, i16) => {
-		paste!([<v $func q_ s16>])
+		paste!([<v $func _ s16>])
 	};
 	($func: ident, i32) => {
-		paste!([<v $func q_ s32>])
+		paste!([<v $func _ s32>])
 	};
 	($func: ident, i64) => {
-		paste!([<v $func q_ s64>])
+		paste!([<v $func _ s64>])
 	};
 	($func: ident, m8) => {
-		paste!([<v $func q_ u8>])
+		paste!([<v $func _ u8>])
 	};
 	($func: ident, m16) => {
-		paste!([<v $func q_ u16>])
+		paste!([<v $func _ u16>])
 	};
 	($func: ident, m32) => {
-		paste!([<v $func q_ u32>])
+		paste!([<v $func _ u32>])
 	};
 	($func: ident, m64) => {
-		paste!([<v $func q_ u64>])
+		paste!([<v $func _ u64>])
 	};
 	($func: ident, $ty: ident) => {
-		paste!([<v $func q_ $ty>])
+		paste!([<v $func _ $ty>])
 	};
 }
 
@@ -2329,32 +2549,70 @@ macro_rules! simple_binop {
 	};
 }
 
+macro_rules! load_neon {
+	($func: ident, $docs: literal, $ty: ident, $factor: literal, $neon_fn: ident) => {
+		paste!{
+			#[inline(always)]
+			#[doc = $docs]
+			pub fn [<$func _ $ty x $factor>](self, ptr: *const $ty) -> [<$ty x $factor>] {
+				unsafe { cast!(neon_ty!($neon_fn, $ty)(ptr as _)) }
+			}
+		}
+	};
+	($func: ident, $docs: literal, $neon_fn: ident, $($ty: ident x $factor: literal),*) => {
+		$(load_neon!($func, $docs, $ty, $factor, $neon_fn);)*
+	};
+}
+
+macro_rules! store_neon {
+	($func: ident, $docs: literal, $ty: ident, $factor: literal, $neon_fn: ident) => {
+		paste!{
+			#[inline(always)]
+			#[doc = $docs]
+			pub fn [<$func _ $ty x $factor>](self, ptr: *const $ty, value: [<$ty x $factor>]) {
+				unsafe { cast!(neon_ty!($neon_fn, $ty)(ptr as _, cast!(value))) }
+			}
+		}
+	};
+	($func: ident, $docs: literal, $neon_fn: ident, $($ty: ident x $factor: literal),*) => {
+		$(store_neon!($func, $docs, $ty, $factor, $neon_fn);)*
+	};
+}
+
 impl Neon {
-	simple_binop!(add, "Adds the elements of each lane of `a` and `b`.", u8 x 16, u16 x 8, u32 x 4, u64 x 2, f32 x 4, f64 x 2);
+	simple_binop!(add, "Adds the elements of each lane of `a` and `b`.", addq, u8 x 16, u16 x 8, u32 x 4, u64 x 2, f32 x 4, f64 x 2);
 
-	simple_binop!(mul, "Multiplies the elements of each lane of `a` and `b`.", u8 x 16, i8 x 16, u16 x 8, i16 x 8, u32 x 4, i32 x 4, f32 x 4, f64 x 2);
+	simple_binop!(mul, "Multiplies the elements of each lane of `a` and `b`.", mulq, u8 x 16, i8 x 16, u16 x 8, i16 x 8, u32 x 4, i32 x 4, f32 x 4, f64 x 2);
 
-	simple_binop!(sub, "Multiplies the elements of each lane of `a` and `b`.", u8 x 16, u16 x 8, u32 x 4, u64 x 2, f32 x 4, f64 x 2);
+	simple_binop!(sub, "Multiplies the elements of each lane of `a` and `b`.", subq, u8 x 16, u16 x 8, u32 x 4, u64 x 2, f32 x 4, f64 x 2);
 
-	simple_binop!(div, "Divides the elements of each lane of `a` and `b`.", f32 x 4, f64 x 2);
+	simple_binop!(div, "Divides the elements of each lane of `a` and `b`.", divq, f32 x 4, f64 x 2);
 
-	simple_binop!(and, "Returns the bitwise AND of `a` and `b`.", m8 x 16, u8 x 16, i8 x 16, m16 x 8, u16 x 8, i16 x 8, m32 x 4, u32 x 4, i32 x 4, m64 x 2, u64 x 2, i64 x 2);
+	simple_binop!(and, "Returns the bitwise AND of `a` and `b`.", andq, m8 x 16, u8 x 16, i8 x 16, m16 x 8, u16 x 8, i16 x 8, m32 x 4, u32 x 4, i32 x 4, m64 x 2, u64 x 2, i64 x 2);
 
-	simple_binop!(or, "Returns the bitwise OR of `a` and `b`.", orr, m8 x 16, u8 x 16, i8 x 16, m16 x 8, u16 x 8, i16 x 8, m32 x 4, u32 x 4, i32 x 4, m64 x 2, u64 x 2, i64 x 2);
+	simple_binop!(or, "Returns the bitwise OR of `a` and `b`.", orrq, m8 x 16, u8 x 16, i8 x 16, m16 x 8, u16 x 8, i16 x 8, m32 x 4, u32 x 4, i32 x 4, m64 x 2, u64 x 2, i64 x 2);
 
-	simple_binop!(cmp_eq, "Compares the elements in each lane of `a` and `b` for equality.", ceq, u8 x 16 => m8, i8 x 16 => m8, u16 x 8 => m16, i16 x 8 => m16, u32 x 4 => m32, i32 x 4 => m32, u64 x 2 => m64, i64 x 2 => m64, f32 x 4 => m32, f64 x 2 => m64);
+	simple_binop!(cmp_eq, "Compares the elements in each lane of `a` and `b` for equality.", ceqq, u8 x 16 => m8, i8 x 16 => m8, u16 x 8 => m16, i16 x 8 => m16, u32 x 4 => m32, i32 x 4 => m32, u64 x 2 => m64, i64 x 2 => m64, f32 x 4 => m32, f64 x 2 => m64);
 
-	simple_binop!(cmp_gt, "Compares the elements in each lane of `a` and `b` for greater-than.", cgt, u8 x 16 => m8, i8 x 16 => m8, u16 x 8 => m16, i16 x 8 => m16, u32 x 4 => m32, i32 x 4 => m32, u64 x 2 => m64, i64 x 2 => m64, f32 x 4 => m32, f64 x 2 => m64);
+	simple_binop!(cmp_gt, "Compares the elements in each lane of `a` and `b` for greater-than.", cgtq, u8 x 16 => m8, i8 x 16 => m8, u16 x 8 => m16, i16 x 8 => m16, u32 x 4 => m32, i32 x 4 => m32, u64 x 2 => m64, i64 x 2 => m64, f32 x 4 => m32, f64 x 2 => m64);
 
-	simple_binop!(cmp_ge, "Compares the elements in each lane of `a` and `b` for greater-than-or-equal-to.", cge, u8 x 16 => m8, i8 x 16 => m8, u16 x 8 => m16, i16 x 8 => m16, u32 x 4 => m32, i32 x 4 => m32, u64 x 2 => m64, i64 x 2 => m64, f32 x 4 => m32, f64 x 2 => m64);
+	simple_binop!(cmp_ge, "Compares the elements in each lane of `a` and `b` for greater-than-or-equal-to.", cgeq, u8 x 16 => m8, i8 x 16 => m8, u16 x 8 => m16, i16 x 8 => m16, u32 x 4 => m32, i32 x 4 => m32, u64 x 2 => m64, i64 x 2 => m64, f32 x 4 => m32, f64 x 2 => m64);
 
-	simple_binop!(cmp_le, "Compares the elements in each lane of `a` and `b` for less-than-or-equal-to.", cle, u8 x 16 => m8, i8 x 16 => m8, u16 x 8 => m16, i16 x 8 => m16, u32 x 4 => m32, i32 x 4 => m32, u64 x 2 => m64, i64 x 2 => m64, f32 x 4 => m32, f64 x 2 => m64);
+	simple_binop!(cmp_le, "Compares the elements in each lane of `a` and `b` for less-than-or-equal-to.", cleq, u8 x 16 => m8, i8 x 16 => m8, u16 x 8 => m16, i16 x 8 => m16, u32 x 4 => m32, i32 x 4 => m32, u64 x 2 => m64, i64 x 2 => m64, f32 x 4 => m32, f64 x 2 => m64);
 
-	simple_binop!(cmp_lt, "Compares the elements in each lane of `a` and `b` for less-than.", clt, u8 x 16 => m8, i8 x 16 => m8, u16 x 8 => m16, i16 x 8 => m16, u32 x 4 => m32, i32 x 4 => m32, u64 x 2 => m64, i64 x 2 => m64, f32 x 4 => m32, f64 x 2 => m64);
+	simple_binop!(cmp_lt, "Compares the elements in each lane of `a` and `b` for less-than.", cltq, u8 x 16 => m8, i8 x 16 => m8, u16 x 8 => m16, i16 x 8 => m16, u32 x 4 => m32, i32 x 4 => m32, u64 x 2 => m64, i64 x 2 => m64, f32 x 4 => m32, f64 x 2 => m64);
 
-	simple_binop!(min, "Computes the elementwise minimum of each lane of `a` and `b`.", u8 x 16, i8 x 16, u16 x 8, i16 x 8, u32 x 4, i32 x 4, f32 x 4, f64 x 2);
+	simple_binop!(min, "Computes the elementwise minimum of each lane of `a` and `b`.", minq, u8 x 16, i8 x 16, u16 x 8, i16 x 8, u32 x 4, i32 x 4, f32 x 4, f64 x 2);
 
-	simple_binop!(max, "Computes the elementwise maximum of each lane of `a` and `b`.", u8 x 16, i8 x 16, u16 x 8, i16 x 8, u32 x 4, i32 x 4, f32 x 4, f64 x 2);
+	simple_binop!(max, "Computes the elementwise maximum of each lane of `a` and `b`.", maxq, u8 x 16, i8 x 16, u16 x 8, i16 x 8, u32 x 4, i32 x 4, f32 x 4, f64 x 2);
+
+	load_neon!(load_ptr, "Load the full vector at an aligned pointer.", ld1q, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
+
+	load_neon!(load_unaligned_ptr, "Load the full vector at an unaligned pointer.", ld1q, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
+
+	store_neon!(store_ptr, "Store the full vector at an aligned pointer.", st1q, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
+
+	store_neon!(store_unaligned_ptr, "Store the full vector at an aligned pointer.", st1q, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
 
 	/// Returns the bitwise AND of `a` and `b`.
 	#[inline(always)]

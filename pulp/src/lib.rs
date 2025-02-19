@@ -541,6 +541,76 @@ macro_rules! split_slice {
 	};
 }
 
+macro_rules! load_transmute {
+	($func: ident, $ty: ident, $to: ty) => {
+		paste! {
+			#[inline(always)]
+			/// # Safety
+			///
+			/// See the trait-level safety documentation.
+			unsafe fn [<$func _ $ty s>](self, ptr: *const $ty) -> Self::[<$ty s>] {
+				self.[<transmute_ $ty s_ $to s>](
+					self.[<$func _ $to s>](ptr as _),
+				)
+			}
+		}
+	};
+	($func: ident, $($ty: ident => $to: ident),*) => {
+		$(load_transmute!($func, $ty, $to);)*
+	};
+}
+
+macro_rules! store_transmute {
+	($func: ident, $ty: ident, $to: ty) => {
+		paste! {
+			#[inline(always)]
+			/// # Safety
+			///
+			/// See the trait-level safety documentation.
+			unsafe fn [<$func _ $ty s>](self, ptr: *const $ty, value: Self::[<$ty s>]) {
+				self.[<$func _ $to s>](ptr as _, self.[<transmute_ $to s_ $ty s>](value));
+			}
+		}
+	};
+	($func: ident, $($ty: ident => $to: ident),*) => {
+		$(store_transmute!($func, $ty, $to);)*
+	};
+}
+
+macro_rules! mask_load_transmute {
+	($func: ident, $ty: ident, $to: ty, $mask: ident) => {
+		paste! {
+			#[inline(always)]
+			/// # Safety
+			///
+			/// See the trait-level safety documentation.
+			unsafe fn [<$func _ $ty s>](self, mask: MemMask<Self::[<$mask s>]>, ptr: *const $ty) -> Self::[<$ty s>] {
+				self.[<transmute_ $ty s_ $to s>](self.[<$func _ $to s>](mask, ptr as _))
+			}
+		}
+	};
+	($func: ident, $($ty: ident: $mask: ident => $to: ident),*) => {
+		$(mask_load_transmute!($func, $ty, $to, $mask);)*
+	};
+}
+
+macro_rules! mask_store_transmute {
+	($func: ident, $ty: ident, $to: ty, $mask: ident) => {
+		paste! {
+			#[inline(always)]
+			/// # Safety
+			///
+			/// See the trait-level safety documentation.
+			unsafe fn [<$func _ $ty s>](self, mask: MemMask<Self::[<$mask s>]>, ptr: *mut $ty, value: Self::[<$ty s>]) {
+				self.[<$func _ $to s>](mask, ptr as _, self.[<transmute_ $to s_ $ty s>](value));
+			}
+		}
+	};
+	($func: ident, $($ty: ident: $mask: ident => $to: ident),*) => {
+		$(mask_store_transmute!($func, $ty, $to, $mask);)*
+	};
+}
+
 /// Types that allow \[de\]interleaving.
 ///
 /// # Safety
@@ -644,6 +714,19 @@ pub trait Simd: Seal + Debug + Copy + Send + Sync + 'static {
 
 	split_slice!(u8, i8, u16, i16, u32, i32, u64, i64, c32, f32, c64, f64);
 	define_splat!(u8, i8, u16, i16, u32, i32, u64, i64, c32, f32, c64, f64);
+
+	load_transmute!(load_ptr, i8 => u8, i16 => u16, i32 => u32, i64 => u64, f32 => u32, f64 => u64);
+	load_transmute!(load_unaligned_ptr, i8 => u8, i16 => u16, i32 => u32, i64 => u64, f32 => u32, f64 => u64);
+	load_transmute!(load_unaligned_ptr_low, i8 => u8, i16 => u16, i32 => u32, i64 => u64, f32 => u32, f64 => u64);
+	load_transmute!(load_unaligned_ptr_high, i8 => u8, i16 => u16, i32 => u32, i64 => u64, f32 => u32, f64 => u64);
+
+	store_transmute!(store_ptr, i8 => u8, i16 => u16, i32 => u32, i64 => u64, f32 => u32, f64 => u64);
+	store_transmute!(store_unaligned_ptr, i8 => u8, i16 => u16, i32 => u32, i64 => u64, f32 => u32, f64 => u64);
+	store_transmute!(store_unaligned_ptr_low, i8 => u8, i16 => u16, i32 => u32, i64 => u64, f32 => u32, f64 => u64);
+	store_transmute!(store_unaligned_ptr_high, i8 => u8, i16 => u16, i32 => u32, i64 => u64, f32 => u32, f64 => u64);
+
+	mask_load_transmute!(mask_load_ptr, i8: m8 => u8, i16: m16 => u16, i32: m32 => u32, f32: m32 => u32, i64: m64 => u64, f64: m64 => u64);
+	mask_store_transmute!(mask_store_ptr, i8: m8 => u8, i16: m16 => u16, i32: m32 => u32, f32: m32 => u32, i64: m64 => u64, f64: m64 => u64);
 
 	fn conj_c32s(self, a: Self::c32s) -> Self::c32s;
 	fn conj_c64s(self, a: Self::c64s) -> Self::c64s;
@@ -841,55 +924,98 @@ pub trait Simd: Seal + Debug + Copy + Send + Sync + 'static {
 	/// Addresses corresponding to enabled lanes in the mask have the same restrictions as
 	/// [`core::ptr::read`].
 	unsafe fn mask_load_ptr_c64s(self, mask: MemMask<Self::m64s>, ptr: *const c64) -> Self::c64s;
-	/// # Safety
-	///
-	/// Addresses corresponding to enabled lanes in the mask have the same restrictions as
-	/// [`core::ptr::read`].
-	#[inline(always)]
-	unsafe fn mask_load_ptr_f32s(self, mask: MemMask<Self::m32s>, ptr: *const f32) -> Self::f32s {
-		self.transmute_f32s_u32s(self.mask_load_ptr_u32s(mask, ptr as *const u32))
-	}
 
 	/// # Safety
 	///
-	/// Addresses corresponding to enabled lanes in the mask have the same restrictions as
-	/// [`core::ptr::read`].
-	#[inline(always)]
-	unsafe fn mask_load_ptr_f64s(self, mask: MemMask<Self::m64s>, ptr: *const f64) -> Self::f64s {
-		self.transmute_f64s_u64s(self.mask_load_ptr_u64s(mask, ptr as *const u64))
-	}
+	/// Do a full vectorized, aligned load. Has the same restrictions as [`core::ptr::read`].
+	unsafe fn load_ptr_u8s(self, ptr: *const u8) -> Self::u8s;
+
 	/// # Safety
 	///
-	/// Addresses corresponding to enabled lanes in the mask have the same restrictions as
-	/// [`core::ptr::read`].
-	#[inline(always)]
-	unsafe fn mask_load_ptr_i8s(self, mask: MemMask<Self::m8s>, ptr: *const i8) -> Self::i8s {
-		self.transmute_i8s_u8s(self.mask_load_ptr_u8s(mask, ptr as *const u8))
-	}
+	/// Do a full vectorized, aligned load. Has the same restrictions as [`core::ptr::read`].
+	unsafe fn load_ptr_u16s(self, ptr: *const u16) -> Self::u16s;
+
 	/// # Safety
 	///
-	/// Addresses corresponding to enabled lanes in the mask have the same restrictions as
-	/// [`core::ptr::read`].
-	#[inline(always)]
-	unsafe fn mask_load_ptr_i16s(self, mask: MemMask<Self::m16s>, ptr: *const i16) -> Self::i16s {
-		self.transmute_i16s_u16s(self.mask_load_ptr_u16s(mask, ptr as *const u16))
-	}
+	/// Do a full vectorized, aligned load. Has the same restrictions as [`core::ptr::read`].
+	unsafe fn load_ptr_u32s(self, ptr: *const u32) -> Self::u32s;
+
 	/// # Safety
 	///
-	/// Addresses corresponding to enabled lanes in the mask have the same restrictions as
-	/// [`core::ptr::read`].
-	#[inline(always)]
-	unsafe fn mask_load_ptr_i32s(self, mask: MemMask<Self::m32s>, ptr: *const i32) -> Self::i32s {
-		self.transmute_i32s_u32s(self.mask_load_ptr_u32s(mask, ptr as *const u32))
-	}
+	/// Do a full vectorized, aligned load. Has the same restrictions as [`core::ptr::read`].
+	unsafe fn load_ptr_u64s(self, ptr: *const u64) -> Self::u64s;
+
 	/// # Safety
 	///
-	/// Addresses corresponding to enabled lanes in the mask have the same restrictions as
-	/// [`core::ptr::read`].
-	#[inline(always)]
-	unsafe fn mask_load_ptr_i64s(self, mask: MemMask<Self::m64s>, ptr: *const i64) -> Self::i64s {
-		self.transmute_i64s_u64s(self.mask_load_ptr_u64s(mask, ptr as *const u64))
-	}
+	/// Do a full vectorized, unaligned load. Has the same restrictions as
+	/// [`core::ptr::read_unaligned`].
+	unsafe fn load_unaligned_ptr_u8s(self, ptr: *const u8) -> Self::u8s;
+
+	/// # Safety
+	///
+	/// Do a full vectorized, unaligned load. Has the same restrictions as
+	/// [`core::ptr::read_unaligned`].
+	unsafe fn load_unaligned_ptr_u16s(self, ptr: *const u16) -> Self::u16s;
+
+	/// # Safety
+	///
+	/// Do a full vectorized, unaligned load. Has the same restrictions as
+	/// [`core::ptr::read_unaligned`].
+	unsafe fn load_unaligned_ptr_u32s(self, ptr: *const u32) -> Self::u32s;
+
+	/// # Safety
+	///
+	/// Do a full vectorized, unaligned load. Has the same restrictions as
+	/// [`core::ptr::read_unaligned`].
+	unsafe fn load_unaligned_ptr_u64s(self, ptr: *const u64) -> Self::u64s;
+
+	/// # Safety
+	///
+	/// Load the low half of the vector from ptr, unaligned. Has the same restrictions as
+	/// [`core::ptr::read_unaligned`].
+	unsafe fn load_unaligned_ptr_low_u8s(self, ptr: *const u8) -> Self::u8s;
+
+	/// # Safety
+	///
+	/// Load the low half of the vector from ptr, unaligned. Has the same restrictions as
+	/// [`core::ptr::read_unaligned`].
+	unsafe fn load_unaligned_ptr_low_u16s(self, ptr: *const u16) -> Self::u16s;
+
+	/// # Safety
+	///
+	/// Load the low half of the vector from ptr, unaligned. Has the same restrictions as
+	/// [`core::ptr::read_unaligned`].
+	unsafe fn load_unaligned_ptr_low_u32s(self, ptr: *const u32) -> Self::u32s;
+
+	/// # Safety
+	///
+	/// Load the low half of the vector from ptr, unaligned. Has the same restrictions as
+	/// [`core::ptr::read_unaligned`].
+	unsafe fn load_unaligned_ptr_low_u64s(self, ptr: *const u64) -> Self::u64s;
+
+	/// # Safety
+	///
+	/// Load the high half of the vector from ptr, unaligned. Has the same restrictions as
+	/// [`core::ptr::read_unaligned`].
+	unsafe fn load_unaligned_ptr_high_u8s(self, ptr: *const u8) -> Self::u8s;
+
+	/// # Safety
+	///
+	/// Load the high half of the vector from ptr, unaligned. Has the same restrictions as
+	/// [`core::ptr::read_unaligned`].
+	unsafe fn load_unaligned_ptr_high_u16s(self, ptr: *const u16) -> Self::u16s;
+
+	/// # Safety
+	///
+	/// Load the high half of the vector from ptr, unaligned. Has the same restrictions as
+	/// [`core::ptr::read_unaligned`].
+	unsafe fn load_unaligned_ptr_high_u32s(self, ptr: *const u32) -> Self::u32s;
+
+	/// # Safety
+	///
+	/// Load the high half of the vector from ptr, unaligned. Has the same restrictions as
+	/// [`core::ptr::read_unaligned`].
+	unsafe fn load_unaligned_ptr_high_u64s(self, ptr: *const u64) -> Self::u64s;
 
 	/// # Safety
 	///
@@ -934,80 +1060,102 @@ pub trait Simd: Seal + Debug + Copy + Send + Sync + 'static {
 		ptr: *mut c64,
 		values: Self::c64s,
 	);
-	/// # Safety
-	///
-	/// Addresses corresponding to enabled lanes in the mask have the same restrictions as
-	/// [`core::ptr::write`].
-	#[inline(always)]
-	unsafe fn mask_store_ptr_f32s(
-		self,
-		mask: MemMask<Self::m32s>,
-		ptr: *mut f32,
-		values: Self::f32s,
-	) {
-		self.mask_store_ptr_u32s(mask, ptr as *mut u32, self.transmute_u32s_f32s(values));
-	}
 
 	/// # Safety
 	///
-	/// Addresses corresponding to enabled lanes in the mask have the same restrictions as
+	/// Stores the full vector to `ptr`, aligned. Has the same restrictions as
 	/// [`core::ptr::write`].
-	#[inline(always)]
-	unsafe fn mask_store_ptr_f64s(
-		self,
-		mask: MemMask<Self::m64s>,
-		ptr: *mut f64,
-		values: Self::f64s,
-	) {
-		self.mask_store_ptr_u64s(mask, ptr as *mut u64, self.transmute_u64s_f64s(values));
-	}
+	unsafe fn store_ptr_u8s(self, ptr: *mut u8, values: Self::u8s);
+
 	/// # Safety
 	///
-	/// Addresses corresponding to enabled lanes in the mask have the same restrictions as
+	/// Stores the full vector to `ptr`, aligned. Has the same restrictions as
 	/// [`core::ptr::write`].
-	#[inline(always)]
-	unsafe fn mask_store_ptr_i8s(self, mask: MemMask<Self::m8s>, ptr: *mut i8, values: Self::i8s) {
-		self.mask_store_ptr_u8s(mask, ptr as *mut u8, self.transmute_u8s_i8s(values));
-	}
+	unsafe fn store_ptr_u16s(self, ptr: *mut u16, values: Self::u16s);
+
 	/// # Safety
 	///
-	/// Addresses corresponding to enabled lanes in the mask have the same restrictions as
+	/// Stores the full vector to `ptr`, aligned. Has the same restrictions as
 	/// [`core::ptr::write`].
-	#[inline(always)]
-	unsafe fn mask_store_ptr_i16s(
-		self,
-		mask: MemMask<Self::m16s>,
-		ptr: *mut i16,
-		values: Self::i16s,
-	) {
-		self.mask_store_ptr_u16s(mask, ptr as *mut u16, self.transmute_u16s_i16s(values));
-	}
+	unsafe fn store_ptr_u32s(self, ptr: *mut u32, values: Self::u32s);
+
 	/// # Safety
 	///
-	/// Addresses corresponding to enabled lanes in the mask have the same restrictions as
+	/// Stores the full vector to `ptr`, aligned. Has the same restrictions as
 	/// [`core::ptr::write`].
-	#[inline(always)]
-	unsafe fn mask_store_ptr_i32s(
-		self,
-		mask: MemMask<Self::m32s>,
-		ptr: *mut i32,
-		values: Self::i32s,
-	) {
-		self.mask_store_ptr_u32s(mask, ptr as *mut u32, self.transmute_u32s_i32s(values));
-	}
+	unsafe fn store_ptr_u64s(self, ptr: *mut u64, values: Self::u64s);
+
 	/// # Safety
 	///
-	/// Addresses corresponding to enabled lanes in the mask have the same restrictions as
-	/// [`core::ptr::write`].
-	#[inline(always)]
-	unsafe fn mask_store_ptr_i64s(
-		self,
-		mask: MemMask<Self::m64s>,
-		ptr: *mut i64,
-		values: Self::i64s,
-	) {
-		self.mask_store_ptr_u64s(mask, ptr as *mut u64, self.transmute_u64s_i64s(values));
-	}
+	/// Stores the full vector to `ptr`, unaligned. Has the same restrictions as
+	/// [`core::ptr::write_unaligned`].
+	unsafe fn store_unaligned_ptr_u8s(self, ptr: *mut u8, values: Self::u8s);
+
+	/// # Safety
+	///
+	/// Stores the full vector to `ptr`, unaligned. Has the same restrictions as
+	/// [`core::ptr::write_unaligned`].
+	unsafe fn store_unaligned_ptr_u16s(self, ptr: *mut u16, values: Self::u16s);
+
+	/// # Safety
+	///
+	/// Stores the full vector to `ptr`, unaligned. Has the same restrictions as
+	/// [`core::ptr::write_unaligned`].
+	unsafe fn store_unaligned_ptr_u32s(self, ptr: *mut u32, values: Self::u32s);
+
+	/// # Safety
+	///
+	/// Stores the full vector to `ptr`, unaligned. Has the same restrictions as
+	/// [`core::ptr::write_unaligned`].
+	unsafe fn store_unaligned_ptr_u64s(self, ptr: *mut u64, values: Self::u64s);
+
+	/// # Safety
+	///
+	/// Stores the lower half of the vector to `ptr`, unaligned. Has the same restrictions as
+	/// [`core::ptr::write_unaligned`].
+	unsafe fn store_unaligned_ptr_low_u8s(self, ptr: *mut u8, values: Self::u8s);
+
+	/// # Safety
+	///
+	/// Stores the lower half of the vector to `ptr`, unaligned. Has the same restrictions as
+	/// [`core::ptr::write_unaligned`].
+	unsafe fn store_unaligned_ptr_low_u16s(self, ptr: *mut u16, values: Self::u16s);
+
+	/// # Safety
+	///
+	/// Stores the lower half of the vector to `ptr`, unaligned. Has the same restrictions as
+	/// [`core::ptr::write_unaligned`].
+	unsafe fn store_unaligned_ptr_low_u32s(self, ptr: *mut u32, values: Self::u32s);
+
+	/// # Safety
+	///
+	/// Stores the lower half of the vector to `ptr`, unaligned. Has the same restrictions as
+	/// [`core::ptr::write_unaligned`].
+	unsafe fn store_unaligned_ptr_low_u64s(self, ptr: *mut u64, values: Self::u64s);
+
+	/// # Safety
+	///
+	/// Stores the higher half of the vector to `ptr`, unaligned. Has the same restrictions as
+	/// [`core::ptr::write_unaligned`].
+	unsafe fn store_unaligned_ptr_high_u8s(self, ptr: *mut u8, values: Self::u8s);
+
+	/// # Safety
+	///
+	/// Stores the higher half of the vector to `ptr`, unaligned. Has the same restrictions as
+	/// [`core::ptr::write_unaligned`].
+	unsafe fn store_unaligned_ptr_high_u16s(self, ptr: *mut u16, values: Self::u16s);
+
+	/// # Safety
+	///
+	/// Stores the higher half of the vector to `ptr`, unaligned. Has the same restrictions as
+	/// [`core::ptr::write_unaligned`].
+	unsafe fn store_unaligned_ptr_high_u32s(self, ptr: *mut u32, values: Self::u32s);
+
+	/// # Safety
+	///
+	/// Stores the higher half of the vector to `ptr`, unaligned. Has the same restrictions as
+	/// [`core::ptr::write_unaligned`].
+	unsafe fn store_unaligned_ptr_high_u64s(self, ptr: *mut u64, values: Self::u64s);
 
 	/// # Safety
 	///
@@ -1689,6 +1837,41 @@ macro_rules! mask_store_ptr {
 	};
 }
 
+macro_rules! scalar_simd_load {
+	($func: ident, $op: path, $ty: ty) => {
+		paste! {
+			#[inline]
+			unsafe fn [<$func _ $ty s>](self, ptr: *const $ty) -> Self::[<$ty s>] {
+				let mut values = [<$ty as Default>::default(); Self::[<$ty:upper _LANES>]];
+				for i in 0..Self::[<$ty:upper _LANES>] {
+					values[i] = $op(ptr.add(i));
+				}
+				cast(values)
+			}
+		}
+	};
+	($func: ident, $op: path, $($ty: ty),*) => {
+		$(scalar_simd_load!($func, $op, $ty);)*
+	};
+}
+
+macro_rules! scalar_simd_store {
+	($func: ident, $op: path, $ty: ty) => {
+		paste! {
+			#[inline]
+			unsafe fn [<$func _ $ty s>](self, ptr: *mut $ty, values: Self::[<$ty s>]) {
+				let values: [$ty; Self::[<$ty:upper _LANES>]] = cast(values);
+				for i in 0..Self::[<$ty:upper _LANES>] {
+					$op(ptr.add(i), values[i]);
+				}
+			}
+		}
+	};
+	($func: ident, $op: path, $($ty: ty),*) => {
+		$(scalar_simd_store!($func, $op, $ty);)*
+	};
+}
+
 macro_rules! scalar_simd {
 	($ty: ty, $register_count: expr, $m8s: ty, $i8s: ty, $u8s: ty, $m16s: ty, $i16s: ty, $u16s: ty, $m32s: ty, $f32s: ty, $i32s: ty, $u32s: ty, $m64s: ty, $f64s: ty, $i64s: ty, $u64s: ty $(,)?) => {
 		impl Seal for $ty {}
@@ -1745,6 +1928,16 @@ macro_rules! scalar_simd {
 			mask_load_ptr!(cast i8: m8 => u8, i16: m16 => u16, i32: m32 => u32, i64: m64 => u64, c32: m32 => u32, f32: m32 => u32, c64: m64 => u64, f64: m64 => u64);
 			mask_store_ptr!(u8: m8, u16: m16, u32: m32, u64: m64);
 			mask_store_ptr!(cast i8: m8 => u8, i16: m16 => u16, i32: m32 => u32, i64: m64 => u64, c32: m32 => u32, f32: m32 => u32, c64: m64 => u64, f64: m64 => u64);
+
+			scalar_simd_load!(load_ptr, core::ptr::read, u8, u16, u32, u64);
+			scalar_simd_load!(load_unaligned_ptr, core::ptr::read_unaligned, u8, u16, u32, u64);
+			scalar_simd_load!(load_unaligned_ptr_low, core::ptr::read_unaligned, u8, u16, u32, u64);
+			scalar_simd_load!(load_unaligned_ptr_high, core::ptr::read_unaligned, u8, u16, u32, u64);
+
+			scalar_simd_store!(store_ptr, core::ptr::write, u8, u16, u32, u64);
+			scalar_simd_store!(store_unaligned_ptr, core::ptr::write_unaligned, u8, u16, u32, u64);
+			scalar_simd_store!(store_unaligned_ptr_low, core::ptr::write_unaligned, u8, u16, u32, u64);
+			scalar_simd_store!(store_unaligned_ptr_high, core::ptr::write_unaligned, u8, u16, u32, u64);
 
 			#[inline]
 			fn vectorize<Op: WithSimd>(self, op: Op) -> Op::Output {
@@ -2506,6 +2699,34 @@ macro_rules! splat_primitive {
 	}
 }
 
+macro_rules! load_primitive {
+	($func: ident, $op: path, $ty: ty) => {
+		paste! {
+			#[inline]
+			unsafe fn [<$func _ $ty s>](self, ptr: *const $ty) -> Self::[<$ty s>] {
+				$op(ptr)
+			}
+		}
+	};
+	($func: ident, $op: path, $($ty: ty),*) => {
+		$(load_primitive!($func, $op, $ty);)*
+	}
+}
+
+macro_rules! store_primitive {
+	($func: ident, $op: path, $ty: ty) => {
+		paste! {
+			#[inline]
+			unsafe fn [<$func _ $ty s>](self, ptr: *mut $ty, value: Self::[<$ty s>]) {
+				$op(ptr, value)
+			}
+		}
+	};
+	($func: ident, $op: path, $($ty: ty),*) => {
+		$(store_primitive!($func, $op, $ty);)*
+	}
+}
+
 impl Seal for Scalar {}
 impl Simd for Scalar {
 	type c32s = c32;
@@ -2567,6 +2788,64 @@ impl Simd for Scalar {
 	primitive_unop!(not, m8, u8, m16, u16, m32, u32, m64, u64);
 
 	splat_primitive!(u8, i8, u16, i16, u32, i32, u64, i64, c32, f32, c64, f64);
+
+	load_primitive!(load_ptr, core::ptr::read, u8, u16, u32, u64);
+
+	load_primitive!(
+		load_unaligned_ptr,
+		core::ptr::read_unaligned,
+		u8,
+		u16,
+		u32,
+		u64
+	);
+
+	load_primitive!(
+		load_unaligned_ptr_low,
+		core::ptr::read_unaligned,
+		u8,
+		u16,
+		u32,
+		u64
+	);
+
+	load_primitive!(
+		load_unaligned_ptr_high,
+		core::ptr::read_unaligned,
+		u8,
+		u16,
+		u32,
+		u64
+	);
+
+	store_primitive!(store_ptr, core::ptr::write, u8, u16, u32, u64);
+
+	store_primitive!(
+		store_unaligned_ptr,
+		core::ptr::write_unaligned,
+		u8,
+		u16,
+		u32,
+		u64
+	);
+
+	store_primitive!(
+		store_unaligned_ptr_low,
+		core::ptr::write_unaligned,
+		u8,
+		u16,
+		u32,
+		u64
+	);
+
+	store_primitive!(
+		store_unaligned_ptr_high,
+		core::ptr::write_unaligned,
+		u8,
+		u16,
+		u32,
+		u64
+	);
 
 	#[inline]
 	fn abs2_c32s(self, a: Self::c32s) -> Self::c32s {
