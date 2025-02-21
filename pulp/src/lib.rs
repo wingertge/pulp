@@ -4237,7 +4237,7 @@ impl m64 {
 
 /// A 128-bit SIMD vector with 16 elements of type [`i8`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(16))]
 pub struct i8x16(
 	pub i8,
 	pub i8,
@@ -4258,7 +4258,7 @@ pub struct i8x16(
 );
 /// A 256-bit SIMD vector with 32 elements of type [`i8`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(32))]
 pub struct i8x32(
 	pub i8,
 	pub i8,
@@ -4295,7 +4295,7 @@ pub struct i8x32(
 );
 /// A 512-bit SIMD vector with 64 elements of type [`i8`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(64))]
 pub struct i8x64(
 	pub i8,
 	pub i8,
@@ -4365,7 +4365,7 @@ pub struct i8x64(
 
 /// A 128-bit SIMD vector with 16 elements of type [`u8`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(16))]
 pub struct u8x16(
 	pub u8,
 	pub u8,
@@ -4386,7 +4386,7 @@ pub struct u8x16(
 );
 /// A 256-bit SIMD vector with 32 elements of type [`u8`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(32))]
 pub struct u8x32(
 	pub u8,
 	pub u8,
@@ -4423,7 +4423,7 @@ pub struct u8x32(
 );
 /// A 512-bit SIMD vector with 64 elements of type [`u8`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(64))]
 pub struct u8x64(
 	pub u8,
 	pub u8,
@@ -4493,7 +4493,7 @@ pub struct u8x64(
 
 /// A 128-bit SIMD vector with 16 elements of type [`m8`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(16))]
 pub struct m8x16(
 	pub m8,
 	pub m8,
@@ -4514,7 +4514,7 @@ pub struct m8x16(
 );
 /// A 256-bit SIMD vector with 32 elements of type [`m8`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(32))]
 pub struct m8x32(
 	pub m8,
 	pub m8,
@@ -4552,7 +4552,7 @@ pub struct m8x32(
 
 /// A 512-bit SIMD vector with 64 elements of type [`m8`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(64))]
 pub struct m8x64(
 	pub m8,
 	pub m8,
@@ -4622,7 +4622,7 @@ pub struct m8x64(
 
 /// A 128-bit SIMD vector with 8 elements of type [`i16`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(16))]
 pub struct i16x8(
 	pub i16,
 	pub i16,
@@ -4635,7 +4635,7 @@ pub struct i16x8(
 );
 /// A 256-bit SIMD vector with 16 elements of type [`i16`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(32))]
 pub struct i16x16(
 	pub i16,
 	pub i16,
@@ -4656,7 +4656,7 @@ pub struct i16x16(
 );
 /// A 512-bit SIMD vector with 32 elements of type [`i16`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(64))]
 pub struct i16x32(
 	pub i16,
 	pub i16,
@@ -4694,7 +4694,7 @@ pub struct i16x32(
 
 /// A 128-bit SIMD vector with 8 elements of type [`u16`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(16))]
 pub struct u16x8(
 	pub u16,
 	pub u16,
@@ -4707,7 +4707,7 @@ pub struct u16x8(
 );
 /// A 256-bit SIMD vector with 16 elements of type [`u16`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(32))]
 pub struct u16x16(
 	pub u16,
 	pub u16,
@@ -4728,7 +4728,7 @@ pub struct u16x16(
 );
 /// A 512-bit SIMD vector with 32 elements of type [`u16`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(64))]
 pub struct u16x32(
 	pub u16,
 	pub u16,
@@ -4766,7 +4766,7 @@ pub struct u16x32(
 
 /// A 128-bit SIMD vector with 8 elements of type [`m16`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(16))]
 pub struct m16x8(
 	pub m16,
 	pub m16,
@@ -4779,7 +4779,7 @@ pub struct m16x8(
 );
 /// A 256-bit SIMD vector with 16 elements of type [`m16`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(32))]
 pub struct m16x16(
 	pub m16,
 	pub m16,
@@ -4800,7 +4800,7 @@ pub struct m16x16(
 );
 /// A 512-bit SIMD vector with 32 elements of type [`m16`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(64))]
 pub struct m16x32(
 	pub m16,
 	pub m16,
@@ -4838,11 +4838,11 @@ pub struct m16x32(
 
 /// A 128-bit SIMD vector with 4 elements of type [`f32`].
 #[derive(Debug, Copy, Clone, PartialEq)]
-#[repr(C)]
+#[repr(C, align(16))]
 pub struct f32x4(pub f32, pub f32, pub f32, pub f32);
 /// A 256-bit SIMD vector with 8 elements of type [`f32`].
 #[derive(Debug, Copy, Clone, PartialEq)]
-#[repr(C)]
+#[repr(C, align(32))]
 pub struct f32x8(
 	pub f32,
 	pub f32,
@@ -4855,7 +4855,7 @@ pub struct f32x8(
 );
 /// A 512-bit SIMD vector with 16 elements of type [`f32`].
 #[derive(Debug, Copy, Clone, PartialEq)]
-#[repr(C)]
+#[repr(C, align(64))]
 pub struct f32x16(
 	pub f32,
 	pub f32,
@@ -4877,11 +4877,11 @@ pub struct f32x16(
 
 /// A 128-bit SIMD vector with 4 elements of type [`i32`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(16))]
 pub struct i32x4(pub i32, pub i32, pub i32, pub i32);
 /// A 256-bit SIMD vector with 8 elements of type [`i32`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(32))]
 pub struct i32x8(
 	pub i32,
 	pub i32,
@@ -4894,7 +4894,7 @@ pub struct i32x8(
 );
 /// A 512-bit SIMD vector with 16 elements of type [`i32`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(64))]
 pub struct i32x16(
 	pub i32,
 	pub i32,
@@ -4916,11 +4916,11 @@ pub struct i32x16(
 
 /// A 128-bit SIMD vector with 4 elements of type [`u32`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(16))]
 pub struct u32x4(pub u32, pub u32, pub u32, pub u32);
 /// A 256-bit SIMD vector with 8 elements of type [`u32`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(32))]
 pub struct u32x8(
 	pub u32,
 	pub u32,
@@ -4933,7 +4933,7 @@ pub struct u32x8(
 );
 /// A 512-bit SIMD vector with 16 elements of type [`u32`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(64))]
 pub struct u32x16(
 	pub u32,
 	pub u32,
@@ -4955,11 +4955,11 @@ pub struct u32x16(
 
 /// A 128-bit SIMD vector with 4 elements of type [`m32`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(16))]
 pub struct m32x4(pub m32, pub m32, pub m32, pub m32);
 /// A 256-bit SIMD vector with 8 elements of type [`m32`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(32))]
 pub struct m32x8(
 	pub m32,
 	pub m32,
@@ -4972,7 +4972,7 @@ pub struct m32x8(
 );
 /// A 512-bit SIMD vector with 16 elements of type [`m32`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(64))]
 pub struct m32x16(
 	pub m32,
 	pub m32,
@@ -4994,15 +4994,15 @@ pub struct m32x16(
 
 /// A 128-bit SIMD vector with 2 elements of type [`f64`].
 #[derive(Debug, Copy, Clone, PartialEq)]
-#[repr(C)]
+#[repr(C, align(16))]
 pub struct f64x2(pub f64, pub f64);
 /// A 256-bit SIMD vector with 4 elements of type [`f64`].
 #[derive(Debug, Copy, Clone, PartialEq)]
-#[repr(C)]
+#[repr(C, align(32))]
 pub struct f64x4(pub f64, pub f64, pub f64, pub f64);
 /// A 512-bit SIMD vector with 8 elements of type [`f64`].
 #[derive(Debug, Copy, Clone, PartialEq)]
-#[repr(C)]
+#[repr(C, align(64))]
 pub struct f64x8(
 	pub f64,
 	pub f64,
@@ -5016,15 +5016,15 @@ pub struct f64x8(
 
 /// A 128-bit SIMD vector with 2 elements of type [`i64`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(16))]
 pub struct i64x2(pub i64, pub i64);
 /// A 256-bit SIMD vector with 4 elements of type [`i64`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(32))]
 pub struct i64x4(pub i64, pub i64, pub i64, pub i64);
 /// A 512-bit SIMD vector with 8 elements of type [`i64`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(64))]
 pub struct i64x8(
 	pub i64,
 	pub i64,
@@ -5038,15 +5038,15 @@ pub struct i64x8(
 
 /// A 128-bit SIMD vector with 2 elements of type [`u64`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(16))]
 pub struct u64x2(pub u64, pub u64);
 /// A 256-bit SIMD vector with 4 elements of type [`u64`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(32))]
 pub struct u64x4(pub u64, pub u64, pub u64, pub u64);
 /// A 512-bit SIMD vector with 8 elements of type [`u64`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(64))]
 pub struct u64x8(
 	pub u64,
 	pub u64,
@@ -5060,15 +5060,15 @@ pub struct u64x8(
 
 /// A 128-bit SIMD vector with 2 elements of type [`m64`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(16))]
 pub struct m64x2(pub m64, pub m64);
 /// A 256-bit SIMD vector with 4 elements of type [`m64`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(32))]
 pub struct m64x4(pub m64, pub m64, pub m64, pub m64);
 /// A 512-bit SIMD vector with 8 elements of type [`m64`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(64))]
 pub struct m64x8(
 	pub m64,
 	pub m64,
