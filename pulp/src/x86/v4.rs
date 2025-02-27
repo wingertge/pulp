@@ -394,6 +394,9 @@ macro_rules! impl_simd_unop {
 			}
 		}
 	};
+	($func: ident, $op: ident, $($ty: ident x $factor: literal),*) => {
+		$(impl_simd_unop!($func, $op, $ty, $ty, $factor);)*
+	};
 	($func: ident, $($ty: ident x $factor: literal),*) => {
 		$(impl_simd_unop!($func, $func, $ty, $ty, $factor);)*
 	};
@@ -484,6 +487,14 @@ impl Simd for V4 {
 	impl_simd_binop!(min, u8 x 64, i8 x 64, u16 x 32, i16 x 32, u32 x 16, i32 x 16, u64 x 8, i64 x 8, f32 x 16, f64 x 8);
 
 	impl_simd_unop!(not, u8 x 64, u16 x 32, u32 x 16, u64 x 8);
+
+	impl_simd_unop!(recip, approx_reciprocal, f32 x 16);
+
+	impl_simd_unop!(sqrt, f32 x 16, f64 x 8);
+
+	impl_simd_unop!(abs, unsigned_abs, i8 x 64, i16 x 32, i32 x 16);
+
+	impl_simd_unop!(abs, f32 x 16, f64 x 8);
 
 	load!(load_ptr, u8 x 64, u16 x 32, u32 x 16, u64 x 8);
 
@@ -3383,6 +3394,18 @@ impl V4 {
 	#[inline(always)]
 	pub fn not_u8x64(self, a: u8x64) -> u8x64 {
 		self.xor_u8x64(a, self.splat_u8x64(!0))
+	}
+
+	/// Returns the approximate reciprocal of `a`
+	#[inline(always)]
+	pub fn approx_reciprocal_f32x16(self, a: f32x16) -> f32x16 {
+		cast!(self.avx512f._mm512_rcp14_ps(cast!(a)))
+	}
+
+	/// Returns the approximate reciprocal of `a`
+	#[inline(always)]
+	pub fn approx_reciprocal_f64x8(self, a: f64x8) -> f64x8 {
+		cast!(self.avx512f._mm512_rcp14_pd(cast!(a)))
 	}
 
 	/// See `_mm512_packs_epi16`

@@ -1421,9 +1421,13 @@ macro_rules! impl_simd_unop {
 			}
 		}
 	};
+	($func: ident, $op: ident, $($ty: ident x $factor: literal),*) => {
+		$(impl_simd_unop!($func, $op, $ty, $ty, $factor);)*
+	};
 	($func: ident, $($ty: ident x $factor: literal),*) => {
 		$(impl_simd_unop!($func, $func, $ty, $ty, $factor);)*
 	};
+
 }
 
 macro_rules! impl_scalar_binop {
@@ -1550,6 +1554,14 @@ impl Simd for V2 {
 	impl_scalar_binop!(min, u64, i64);
 
 	impl_simd_unop!(not, m8 x 16, u8 x 16, m16 x 8, u16 x 8, m32 x 4, u32 x 4, m64 x 2, u64 x 2);
+
+	impl_simd_unop!(recip, approx_reciprocal, f32 x 4);
+
+	impl_simd_unop!(sqrt, f32 x 4, f64 x 2);
+
+	impl_simd_unop!(abs, unsigned_abs, i8 x 16, i16 x 8, i32 x 4);
+
+	impl_simd_unop!(abs, f32 x 4, f64 x 2);
 
 	load!(load_ptr, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
 

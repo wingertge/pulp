@@ -319,6 +319,9 @@ macro_rules! impl_simd_unop {
 			}
 		}
 	};
+	($func: ident, $op: ident, $($ty: ident x $factor: literal),*) => {
+		$(impl_simd_unop!($func, $op, $ty, $ty, $factor);)*
+	};
 	($func: ident, $($ty: ident x $factor: literal),*) => {
 		$(impl_simd_unop!($func, $func, $ty, $ty, $factor);)*
 	};
@@ -432,6 +435,14 @@ impl Simd for V3 {
 	impl_scalar_binop!(min, u64, i64);
 
 	impl_simd_unop!(not, m8 x 32, u8 x 32, m16 x 16, u16 x 16, m32 x 8, u32 x 8, m64 x 4, u64 x 4);
+
+	impl_simd_unop!(recip, approx_reciprocal, f32 x 8);
+
+	impl_simd_unop!(sqrt, f32 x 8, f64 x 4);
+
+	impl_simd_unop!(abs, unsigned_abs, i8 x 32, i16 x 16, i32 x 8);
+
+	impl_simd_unop!(abs, f32 x 8, f64 x 4);
 
 	load!(load_ptr, u8 x 32, u16 x 16, u32 x 8, u64 x 4);
 
@@ -1443,6 +1454,14 @@ impl Simd for V3_128b {
 
 	impl_simd_unop!(not, m8 x 16, u8 x 16, m16 x 8, u16 x 8, m32 x 4, u32 x 4, m64 x 2, u64 x 2);
 
+	impl_simd_unop!(recip, approx_reciprocal, f32 x 4);
+
+	impl_simd_unop!(sqrt, f32 x 4, f64 x 2);
+
+	impl_simd_unop!(abs, unsigned_abs, i8 x 16, i16 x 8, i32 x 4);
+
+	impl_simd_unop!(abs, f32 x 4, f64 x 2);
+
 	load!(load_ptr, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
 
 	load!(load_unaligned_ptr, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
@@ -2040,6 +2059,14 @@ impl Simd for V3_256b {
 
 	impl_simd_unop!(not, m8 x 32, u8 x 32, m16 x 16, u16 x 16, m32 x 8, u32 x 8, m64 x 4, u64 x 4);
 
+	impl_simd_unop!(recip, approx_reciprocal, f32 x 8);
+
+	impl_simd_unop!(sqrt, f32 x 8, f64 x 4);
+
+	impl_simd_unop!(abs, unsigned_abs, i8 x 32, i16 x 16, i32 x 8);
+
+	impl_simd_unop!(abs, f32 x 8, f64 x 4);
+
 	load!(load_ptr, u8 x 32, u16 x 16, u32 x 8, u64 x 4);
 
 	load!(load_unaligned_ptr, u8 x 32, u16 x 16, u32 x 8, u64 x 4);
@@ -2271,6 +2298,9 @@ impl Simd for V3_512b {
 		fn abs2_c64s(self, a: Self::c64s) -> Self::c64s;
 		fn abs_max_c32s(self, a: Self::c32s) -> Self::c32s;
 		fn abs_max_c64s(self, a: Self::c64s) -> Self::c64s;
+		fn abs_i8s(self, a: Self::i8s) -> Self::i8s;
+		fn abs_i16s(self, a: Self::i16s) -> Self::i16s;
+		fn abs_i32s(self, a: Self::i32s) -> Self::i32s;
 		fn add_c32s(self, a: Self::c32s, b: Self::c32s) -> Self::c32s;
 		fn add_c64s(self, a: Self::c64s, b: Self::c64s) -> Self::c64s;
 		fn add_f32s(self, a: Self::f32s, b: Self::f32s) -> Self::f32s;
@@ -2401,6 +2431,7 @@ impl Simd for V3_512b {
 		fn or_u16s(self, a: Self::u16s, b: Self::u16s) -> Self::u16s;
 		fn or_u32s(self, a: Self::u32s, b: Self::u32s) -> Self::u32s;
 		fn or_u64s(self, a: Self::u64s, b: Self::u64s) -> Self::u64s;
+		fn recip_f32s(self, a: Self::f32s) -> Self::f32s;
 		fn select_u32s_m32s(
 			self,
 			mask: Self::m32s,
@@ -2425,6 +2456,8 @@ impl Simd for V3_512b {
 		fn sub_i32s(self, a: Self::i32s, b: Self::i32s) -> Self::i32s;
 		fn sub_u64s(self, a: Self::u64s, b: Self::u64s) -> Self::u64s;
 		fn sub_i64s(self, a: Self::i64s, b: Self::i64s) -> Self::i64s;
+		fn sqrt_f32s(self, a: Self::f32s) -> Self::f32s;
+		fn sqrt_f64s(self, a: Self::f64s) -> Self::f64s;
 		fn swap_re_im_c32s(self, a: Self::c32s) -> Self::c32s;
 		fn swap_re_im_c64s(self, a: Self::c64s) -> Self::c64s;
 		fn wrapping_dyn_shl_u32s(self, a: Self::u32s, amount: Self::u32s) -> Self::u32s;

@@ -709,6 +709,9 @@ pub trait Simd: Seal + Debug + Copy + Send + Sync + 'static {
 
 	define_unop_all!(neg, c32, c64);
 	define_unop_all!(not, m8, u8, m16, u16, m32, u32, m64, u64);
+	define_unop_all!(recip, f32);
+	define_unop_all!(sqrt, f32, f64);
+	define_unop_all!(abs, i8, i16, i32);
 
 	transmute_unop!(not, i8 => u8, i16 => u16, i32 => u32, i64 => u64, f32 => u32, f64 => u64);
 
@@ -1918,6 +1921,9 @@ macro_rules! scalar_simd {
 			scalar_simd_cmp!(less_than, op lt, u8 => m8, i8 => m8, u16 => m16, i16 => m16, u32 => m32, i32 => m32, u64 => m64, i64 => m64, f32 => m32, f64 => m64);
 
 			scalar_simd_unop!(not, m8, u8, m16, u16, m32, u32, m64, u64);
+			scalar_simd_unop!(recip, f32);
+			scalar_simd_unop!(sqrt, f32, f64);
+			scalar_simd_unop!(abs, i8, i16, i32, f32, f64);
 
 			scalar_splat!(u8, i8, u16, i16, u32, i32, u64, i64, f32, f64);
 
@@ -2784,6 +2790,12 @@ impl Simd for Scalar {
 	primitive_binop!(max, u8, i8, u16, i16, u32, i32, u64, i64, f32, f64);
 
 	primitive_unop!(neg, c32, c64, f32, f64);
+
+	primitive_unop!(recip, f32);
+
+	primitive_unop!(sqrt, f32, f64);
+
+	primitive_unop!(abs, i8, i16, i32, f32, f64);
 
 	primitive_unop!(not, m8, u8, m16, u16, m32, u32, m64, u64);
 
