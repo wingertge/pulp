@@ -274,6 +274,12 @@ impl Simd for Neon {
 
 	impl_unop!(not, m8 x 16, u8 x 16, m16 x 8, u16 x 8, m32 x 4, u32 x 4, m64 x 2, u64 x 2);
 
+	impl_unop!(sqrt, f32 x 4, f64 x 2);
+
+	impl_unop!(recip, f32 x 4);
+
+	impl_unop!(abs, i8 x 16, i16 x 8, i32 x 4, f32 x 4, f64 x 2);
+
 	splat!(u8 x 16, i8 x 16, u16 x 8, i16 x 8, u32 x 4, i32 x 4, u64 x 2, i64 x 2, f32 x 4, f64 x 2);
 
 	load!(load_ptr, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
@@ -1494,6 +1500,12 @@ impl Simd for NeonFcma {
 
 	impl_unop!(not, m8 x 16, u8 x 16, m16 x 8, u16 x 8, m32 x 4, u32 x 4, m64 x 2, u64 x 2);
 
+	impl_unop!(sqrt, f32 x 4, f64 x 2);
+
+	impl_unop!(recip, f32 x 4);
+
+	impl_unop!(abs, i8 x 16, i16 x 8, i32 x 4, f32 x 4, f64 x 2);
+
 	splat!(u8 x 16, i8 x 16, u16 x 8, i16 x 8, u32 x 4, i32 x 4, u64 x 2, i64 x 2, f32 x 4, f64 x 2);
 
 	load!(load_ptr, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
@@ -2549,6 +2561,27 @@ macro_rules! simple_binop {
 	};
 }
 
+macro_rules! simple_unop {
+	($func: ident, $docs: literal, $ty: ident, $out: ident, $factor: literal, $neon_fn: ident) => {
+		paste!{
+			#[inline(always)]
+			#[doc = $docs]
+			pub fn [<$func _ $ty x $factor>](self, a: [<$ty x $factor>]) -> [<$out x $factor>] {
+				unsafe { cast!(neon_ty!($neon_fn, $ty)(cast!(a))) }
+			}
+		}
+	};
+	($func: ident, $docs: literal, $neon_fn: ident, $($ty: ident x $factor: literal => $out: ident),*) => {
+		$(simple_unop!($func, $docs, $ty, $out, $factor, $neon_fn);)*
+	};
+	($func: ident, $docs: literal, $neon_fn: ident, $($ty: ident x $factor: literal),*) => {
+		$(simple_unop!($func, $docs, $ty, $ty, $factor, $neon_fn);)*
+	};
+	($func: ident, $docs: literal, $($ty: ident x $factor: literal),*) => {
+		$(simple_unop!($func, $docs, $ty, $ty, $factor, $func);)*
+	};
+}
+
 macro_rules! load_neon {
 	($func: ident, $docs: literal, $ty: ident, $factor: literal, $neon_fn: ident) => {
 		paste!{
@@ -2605,6 +2638,12 @@ impl Neon {
 	simple_binop!(min, "Computes the elementwise minimum of each lane of `a` and `b`.", minq, u8 x 16, i8 x 16, u16 x 8, i16 x 8, u32 x 4, i32 x 4, f32 x 4, f64 x 2);
 
 	simple_binop!(max, "Computes the elementwise maximum of each lane of `a` and `b`.", maxq, u8 x 16, i8 x 16, u16 x 8, i16 x 8, u32 x 4, i32 x 4, f32 x 4, f64 x 2);
+
+	simple_unop!(sqrt, "Computes the elementwise square root of each lane of `a`.", sqrtq, f32 x 4, f64 x 2);
+
+	simple_unop!(abs, "Computes the elementwise square root of each lane of `a`.", absq, i8 x 16, i16 x 8, i32 x 4, i64 x 2, f32 x 4, f64 x 2);
+
+	simple_unop!(recip, "Computes the elementwise square root of each lane of `a`.", recpeq, u32 x 4, f32 x 4, f64 x 2);
 
 	load_neon!(load_ptr, "Load the full vector at an aligned pointer.", ld1q, u8 x 16, u16 x 8, u32 x 4, u64 x 2);
 
