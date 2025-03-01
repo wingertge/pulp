@@ -710,6 +710,7 @@ pub trait Simd: Seal + Debug + Copy + Send + Sync + 'static {
 	define_unop_all!(neg, c32, c64);
 	define_unop_all!(not, m8, u8, m16, u16, m32, u32, m64, u64);
 	define_unop_all!(recip, f32);
+	#[cfg(feature = "std")]
 	define_unop_all!(sqrt, f32, f64);
 	define_unop_all!(abs, i8, i16, i32);
 
@@ -1922,6 +1923,7 @@ macro_rules! scalar_simd {
 
 			scalar_simd_unop!(not, m8, u8, m16, u16, m32, u32, m64, u64);
 			scalar_simd_unop!(recip, f32);
+			#[cfg(feature = "std")]
 			scalar_simd_unop!(sqrt, f32, f64);
 			scalar_simd_unop!(abs, i8, i16, i32, f32, f64);
 
@@ -2793,6 +2795,7 @@ impl Simd for Scalar {
 
 	primitive_unop!(recip, f32);
 
+	#[cfg(feature = "std")]
 	primitive_unop!(sqrt, f32, f64);
 
 	primitive_unop!(abs, i8, i16, i32, f32, f64);

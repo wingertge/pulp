@@ -438,6 +438,7 @@ impl Simd for V3 {
 
 	impl_simd_unop!(recip, approx_reciprocal, f32 x 8);
 
+	#[cfg(feature = "std")]
 	impl_simd_unop!(sqrt, f32 x 8, f64 x 4);
 
 	impl_simd_unop!(abs, unsigned_abs, i8 x 32, i16 x 16, i32 x 8);
@@ -1456,6 +1457,7 @@ impl Simd for V3_128b {
 
 	impl_simd_unop!(recip, approx_reciprocal, f32 x 4);
 
+	#[cfg(feature = "std")]
 	impl_simd_unop!(sqrt, f32 x 4, f64 x 2);
 
 	impl_simd_unop!(abs, unsigned_abs, i8 x 16, i16 x 8, i32 x 4);
@@ -2061,6 +2063,7 @@ impl Simd for V3_256b {
 
 	impl_simd_unop!(recip, approx_reciprocal, f32 x 8);
 
+	#[cfg(feature = "std")]
 	impl_simd_unop!(sqrt, f32 x 8, f64 x 4);
 
 	impl_simd_unop!(abs, unsigned_abs, i8 x 32, i16 x 16, i32 x 8);

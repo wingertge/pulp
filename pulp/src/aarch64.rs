@@ -274,6 +274,7 @@ impl Simd for Neon {
 
 	impl_unop!(not, m8 x 16, u8 x 16, m16 x 8, u16 x 8, m32 x 4, u32 x 4, m64 x 2, u64 x 2);
 
+	#[cfg(feature = "std")]
 	impl_unop!(sqrt, f32 x 4, f64 x 2);
 
 	impl_unop!(recip, f32 x 4);
@@ -1500,6 +1501,7 @@ impl Simd for NeonFcma {
 
 	impl_unop!(not, m8 x 16, u8 x 16, m16 x 8, u16 x 8, m32 x 4, u32 x 4, m64 x 2, u64 x 2);
 
+	#[cfg(feature = "std")]
 	impl_unop!(sqrt, f32 x 4, f64 x 2);
 
 	impl_unop!(recip, f32 x 4);

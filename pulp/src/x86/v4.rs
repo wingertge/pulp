@@ -490,6 +490,7 @@ impl Simd for V4 {
 
 	impl_simd_unop!(recip, approx_reciprocal, f32 x 16);
 
+	#[cfg(feature = "std")]
 	impl_simd_unop!(sqrt, f32 x 16, f64 x 8);
 
 	impl_simd_unop!(abs, unsigned_abs, i8 x 64, i16 x 32, i32 x 16);
